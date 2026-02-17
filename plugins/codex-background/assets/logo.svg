@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" fill="none">
+  <defs>
+    <linearGradient id="sky" x1="16" y1="16" x2="104" y2="104" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B7CFF"/>
+      <stop offset="1" stop-color="#3ED5C8"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="104" height="104" rx="28" fill="#10131A"/>
+  <rect x="22" y="24" width="76" height="72" rx="16" fill="url(#sky)"/>
+  <circle cx="79" cy="44" r="11" fill="#FFF4B8"/>
+  <path d="M24 82 43 60l15 14 11-10 27 22v8H24V82Z" fill="#151824" fill-opacity=".78"/>
+  <text x="132" y="59" fill="#171923" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="27" font-weight="700">Codex</text>
+  <text x="132" y="88" fill="#6557D8" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="27" font-weight="700">Background</text>
+</svg>
