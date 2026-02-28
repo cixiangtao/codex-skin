@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CODEX_BACKGROUND_HOME=\"$HOME/.config/codex-background\" node \"$PLUGIN_ROOT/scripts/session-start.mjs\"",
+            "timeout": 5,
+            "statusMessage": "Checking Codex background"
+          }
+        ]
+      }
+    ]
+  }
+}
