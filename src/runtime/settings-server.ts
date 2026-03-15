@@ -53,6 +53,7 @@ const CONTENT_TYPES = new Map([
 ])
 
 interface SettingsOptions extends DataDirectoryOptions {
+  authenticatedRedirectUrl?: string
   entryPath: string
   idleTimeoutMs?: number
   isCdpAvailableImpl?: (options: { port: number }) => Promise<boolean>
@@ -251,7 +252,7 @@ export function createSettingsHttpServer(options: SettingsOptions) {
       }
       response.statusCode = 303
       response.setHeader("set-cookie", `${COOKIE_NAME}=${token}; HttpOnly; SameSite=Strict; Path=/`)
-      response.setHeader("location", "/")
+      response.setHeader("location", options.authenticatedRedirectUrl || "/")
       response.end()
       return
     }

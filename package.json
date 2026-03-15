@@ -24,7 +24,9 @@
     "access": "public"
   },
   "scripts": {
-    "dev": "vp dev",
+    "dev": "bun scripts/dev.ts",
+    "dev:server": "bun ./bin/codex-background.ts dev-server",
+    "dev:ui": "vp dev --host 127.0.0.1",
     "build": "vp build",
     "check": "vp check",
     "format": "vp fmt . --write",

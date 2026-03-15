@@ -10,6 +10,7 @@ import { removeFromAllTargets } from "./injector.ts"
 import { appExecutableExists } from "./macos.ts"
 import {
   ensureSettingsServer,
+  listenSettingsServer,
   openSettingsPage,
   runSettingsServerDaemon,
 } from "./settings-server.ts"
@@ -39,6 +40,8 @@ const OPTION_NAMES = new Map<string, CommandOption>([
   ["--disable", "disabled"],
 ])
 const BOOLEAN_OPTIONS = new Set(["--enable", "--disable"])
+const DEVELOPMENT_API_PORT = 4179
+const DEVELOPMENT_UI_URL = "http://127.0.0.1:4178/"
 
 const HELP = `Codex Background
 
@@ -106,6 +109,23 @@ async function openSettings(entryPath: string, io: CommandIo) {
   openSettingsPage(server.url)
   io.log(`Opened settings at http://127.0.0.1:${server.port}/`)
   return server
+}
+
+async function runDevelopmentServer(entryPath: string, io: CommandIo) {
+  const instance = await listenSettingsServer({
+    authenticatedRedirectUrl: DEVELOPMENT_UI_URL,
+    entryPath,
+    idleTimeoutMs: 24 * 60 * 60 * 1000,
+    port: DEVELOPMENT_API_PORT,
+    token: process.env.CODEX_BACKGROUND_DEV_TOKEN,
+  })
+  io.log(`Development API: http://127.0.0.1:${DEVELOPMENT_API_PORT}/`)
+  io.log(`Authenticate the Vite UI: ${instance.url}`)
+
+  const close = () => instance.server.close()
+  process.once("SIGTERM", close)
+  process.once("SIGINT", close)
+  await new Promise<void>((resolve) => instance.server.once("close", resolve))
 }
 
 async function launch(entryPath: string, io: CommandIo) {
@@ -213,6 +233,9 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
       return 0
     case "settings-server":
       await runSettingsServerDaemon({ entryPath })
+      return 0
+    case "dev-server":
+      await runDevelopmentServer(entryPath, io)
       return 0
     default:
       throw new Error(`Unknown command: ${command}\n\n${HELP}`)
