@@ -141,12 +141,15 @@ async function launch(entryPath: string, io: CommandIo) {
   )
 }
 
+export function isSupportedNodeVersion(version = process.versions.node) {
+  const major = Number.parseInt(version.split(".", 1)[0] || "0", 10)
+  return major >= 22
+}
+
 async function doctor(io: CommandIo) {
   const config = await readConfig()
-  const [bunMajor = 0, bunMinor = 0] = Bun.version.split(".").map(Number)
-  const supportedBun = bunMajor > 1 || (bunMajor === 1 && bunMinor >= 3)
   const checks: Array<[string, boolean]> = [
-    ["Bun 1.3+", supportedBun],
+    ["Node.js 22+", isSupportedNodeVersion()],
     ["ChatGPT executable", await appExecutableExists(config.appPath)],
     ["Background image configured", Boolean(config.image)],
     [

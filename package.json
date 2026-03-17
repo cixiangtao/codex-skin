@@ -1,9 +1,8 @@
 {
   "name": "@anys/codex-background",
   "version": "0.2.0",
-  "description": "A Bun-powered visual background companion for the Codex desktop app.",
+  "description": "A visual background companion for the Codex desktop app.",
   "keywords": [
-    "bun",
     "codex",
     "desktop",
     "theme",
@@ -12,12 +11,10 @@
   "license": "MIT",
   "author": "anys",
   "bin": {
-    "codex-background": "./bin/codex-background.ts"
+    "codex-background": "./dist/bin/codex-background.js"
   },
   "files": [
-    "bin",
-    "dist",
-    "src/runtime"
+    "dist"
   ],
   "type": "module",
   "publishConfig": {
@@ -27,16 +24,18 @@
     "dev": "bun scripts/dev.ts",
     "dev:server": "bun ./bin/codex-background.ts dev-server",
     "dev:ui": "vp dev --host 127.0.0.1",
-    "build": "vp build",
+    "build": "bun run build:ui && bun run build:runtime",
+    "build:runtime": "rm -rf dist/bin && bun build ./bin/codex-background.ts --target=node --format=esm --outdir=dist/bin",
+    "build:ui": "vp build",
     "check": "vp check",
     "format": "vp fmt . --write",
     "lint": "vp lint .",
     "test": "vp test run",
-    "prepack": "bun run check && bun run build"
+    "prepack": "bun run build && bun run verify:package",
+    "verify:package": "bun scripts/verify-package.ts"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
-    "@types/bun": "^1.3.14",
     "@types/node": "^26.1.1",
     "tailwindcss": "^4.3.2",
     "typescript": "^7.0.2",
@@ -45,7 +44,7 @@
     "vitest": "^4.1.10"
   },
   "engines": {
-    "bun": ">=1.3.0"
+    "node": ">=22.0.0"
   },
   "packageManager": "bun@1.3.14"
 }

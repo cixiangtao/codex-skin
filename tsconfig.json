@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2024",
-    "types": ["bun", "node"]
+    "types": ["node"]
   },
   "include": ["bin", "scripts", "src", "test", "vite.config.ts"]
 }

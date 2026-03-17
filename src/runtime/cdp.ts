@@ -94,7 +94,7 @@ export class CdpConnection {
   }
 
   async connect() {
-    if (!this.WebSocketImpl) throw new Error("This Bun runtime does not provide WebSocket.")
+    if (!this.WebSocketImpl) throw new Error("This Node.js runtime does not provide WebSocket.")
     if (this.socket) return
     const socket = new this.WebSocketImpl(this.url)
     this.socket = socket

@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 
 import { test } from "vitest"
 
-import { parseArguments } from "../src/runtime/cli.ts"
+import { isSupportedNodeVersion, parseArguments } from "../src/runtime/cli.ts"
 
 test("parseArguments reads configure options without evaluating shell text", () => {
   assert.deepEqual(
@@ -42,4 +42,10 @@ test("parseArguments accepts the visual settings command", () => {
 
 test("parseArguments launches the complete experience by default", () => {
   assert.deepEqual(parseArguments([]), { command: "launch", options: {} })
+})
+
+test("isSupportedNodeVersion enforces the published runtime baseline", () => {
+  assert.equal(isSupportedNodeVersion("21.7.3"), false)
+  assert.equal(isSupportedNodeVersion("22.0.0"), true)
+  assert.equal(isSupportedNodeVersion("24.18.0"), true)
 })
