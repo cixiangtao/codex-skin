@@ -1,0 +1,26 @@
+{
+  "$schema": "https://unpkg.com/release-it@20/schema/release-it.json",
+  "git": {
+    "commit": true,
+    "commitMessage": "chore(release): v${version}",
+    "tag": true,
+    "tagName": "v${version}",
+    "push": true,
+    "requireCleanWorkingDir": true
+  },
+  "github": {
+    "release": false
+  },
+  "gitlab": {
+    "release": false
+  },
+  "hooks": {
+    "before:init": "bun run release:check",
+    "after:release": "echo Successfully released ${name} v${version}"
+  },
+  "npm": {
+    "publish": true,
+    "publishArgs": ["--access", "public"],
+    "publishPackageManager": "npm"
+  }
+}

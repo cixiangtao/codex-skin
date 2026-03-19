@@ -30,6 +30,8 @@
     "check": "vp check",
     "format": "vp fmt . --write",
     "lint": "vp lint .",
+    "release": "release-it",
+    "release:check": "bun run check && bun run test && npm pack --dry-run",
     "test": "vp test run",
     "prepack": "bun run build && bun run verify:package",
     "verify:package": "bun scripts/verify-package.ts"
@@ -37,6 +39,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
     "@types/node": "^26.1.1",
+    "release-it": "^20.2.1",
     "tailwindcss": "^4.3.2",
     "typescript": "^7.0.2",
     "vite": "^8.1.4",
