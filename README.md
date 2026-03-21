@@ -1,13 +1,13 @@
 # Codex Background
 
-A Bun-powered local companion that places transparent character art inside the Codex desktop workspace without modifying or re-signing `ChatGPT.app`.
+A local companion that places transparent character art inside the Codex desktop workspace without modifying or re-signing `ChatGPT.app`.
 
 ## Run
 
 Requirements:
 
 - macOS
-- [Bun](https://bun.sh/) 1.3 or newer
+- Node.js 22 or newer, including npm and `npx`
 - Codex/ChatGPT desktop app in `/Applications/ChatGPT.app`
 
 Once published, the complete user flow is one command:
@@ -65,10 +65,28 @@ The helper never changes `app.asar`, `ElectronAsarIntegrity`, the app signature,
 
 ```bash
 bun install
-bun run dev
+bun dev          # start the Vite UI and local API together
+bun dev:ui       # start only the Vite UI on 127.0.0.1:4178
+bun dev:server   # start only the settings API on 127.0.0.1:4179
 bun run test
 bun run check
 bun run build
 ```
 
-The implementation uses Bun, TypeScript, Tailwind CSS 4, Vite+, Vite, and Vitest.
+`bun dev` authenticates the local development session, opens the Vite page, and stops both child processes together when you press `Ctrl+C`. Development uses Bun and TypeScript, but the npm package publishes a compiled Node.js executable. End users do not need Bun or TypeScript. The settings UI uses Tailwind CSS 4, Vite+, Vite, and Vitest.
+
+## Release
+
+Run an optional standalone preflight without changing the version or publishing:
+
+```bash
+bun run release:check
+```
+
+Start the interactive release when ready:
+
+```bash
+bun run release
+```
+
+The release command runs the same preflight automatically, then updates the version, creates the release commit and tag, pushes them, and publishes the compiled package to npm.
