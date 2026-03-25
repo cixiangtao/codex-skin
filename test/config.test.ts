@@ -37,6 +37,7 @@ test("normalizeConfig clamps unsafe numeric values", () => {
   assert.equal(config.illustrationBlur, 30)
   assert.equal(config.illustrationOpacity, 0)
   assert.equal(config.port, DEFAULT_CONFIG.port)
+  assert.equal(config.portMode, "auto")
   assert.equal(config.pollIntervalMs, 500)
 })
 
@@ -61,10 +62,17 @@ test("writeConfig persists normalized JSON atomically", async () => {
     assert.equal(raw.illustrationX, 74)
     assert.equal(raw.illustrationBlur, 6)
     assert.equal(raw.illustrationOpacity, 0.65)
-    assert.equal(raw.version, 2)
+    assert.equal(raw.version, 3)
+    assert.equal(raw.portMode, "auto")
   } finally {
     await rm(dataDirectory, { recursive: true, force: true })
   }
+})
+
+test("normalizeConfig migrates old default and custom ports", () => {
+  assert.equal(normalizeConfig({ version: 2, port: 9229 }).portMode, "auto")
+  assert.equal(normalizeConfig({ version: 2, port: 9341 }).portMode, "fixed")
+  assert.equal(normalizeConfig({ port: 9341, portMode: "auto" }).portMode, "auto")
 })
 
 test("readConfig returns defaults when no file exists", async () => {

@@ -1,10 +1,19 @@
 import { access } from "node:fs/promises"
 
 import { isCdpAvailable } from "./cdp.ts"
+import { writeConfig } from "./config.ts"
 import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
 import { ensureDaemon, stopDaemon } from "./daemon.ts"
 import { injectAllTargets, removeFromAllTargets } from "./injector.ts"
-import { appExecutableExists, isCodexRunning, launchCodex, resolveAppExecutable } from "./macos.ts"
+import {
+  appExecutableExists,
+  findAvailableCdpPort,
+  inspectCdpPort,
+  isCodexRunning,
+  launchCodex,
+  resolveAppExecutable,
+} from "./macos.ts"
+import type { CdpPortInspection } from "./macos.ts"
 import type { BackgroundApplication, BackgroundConfig, InjectionResult } from "./types.ts"
 
 interface ServiceOptions {
@@ -13,13 +22,17 @@ interface ServiceOptions {
     entryPath: string
   }) => Promise<{ pid: number } & Record<string, unknown>>
   entryPath?: string
+  dataDirectory?: string
+  findAvailableCdpPortImpl?: (preferredPort: number) => Promise<number>
   injectAllTargetsImpl?: (options: { css: string; port: number }) => Promise<InjectionResult[]>
   isCdpAvailableImpl?: (options: { port: number }) => Promise<boolean>
   isCodexRunningImpl?: (appPath: string) => Promise<boolean>
+  inspectCdpPortImpl?: (appPath: string, port: number) => Promise<CdpPortInspection>
   launchCodexImpl?: (options: { appPath: string; port: number }) => number | undefined
   removeFromAllTargetsImpl?: (options: { port: number }) => Promise<number>
   stopDaemonImpl?: () => Promise<number | null>
   timeoutMs?: number
+  writeConfigImpl?: (config: BackgroundConfig) => Promise<BackgroundConfig>
 }
 
 export class BackgroundStateError extends Error {
@@ -32,12 +45,35 @@ export class BackgroundStateError extends Error {
   }
 }
 
-export async function waitForCdp(port: number, options: ServiceOptions = {}) {
+async function inspectConfiguredPort(config: BackgroundConfig, options: ServiceOptions) {
+  if (options.inspectCdpPortImpl) {
+    return await options.inspectCdpPortImpl(config.appPath, config.port)
+  }
+  // Test callers that replace HTTP discovery do not have a real macOS process tree.
+  if (options.isCdpAvailableImpl) {
+    const ready = await options.isCdpAvailableImpl({ port: config.port })
+    return {
+      codexPid: null,
+      listenerPids: [],
+      state: ready ? "codex" : "available",
+    } satisfies CdpPortInspection
+  }
+  return await inspectCdpPort(config.appPath, config.port)
+}
+
+export async function configuredCdpIsReady(config: BackgroundConfig, options: ServiceOptions = {}) {
+  const inspection = await inspectConfiguredPort(config, options)
+  const httpReady =
+    inspection.state === "codex" &&
+    (await (options.isCdpAvailableImpl || isCdpAvailable)({ port: config.port }))
+  return { httpReady, inspection }
+}
+
+export async function waitForCdp(config: BackgroundConfig, options: ServiceOptions = {}) {
   const timeoutMs = options.timeoutMs ?? 15_000
-  const isAvailable = options.isCdpAvailableImpl || isCdpAvailable
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    if (await isAvailable({ port })) return true
+    if ((await configuredCdpIsReady(config, options)).httpReady) return true
     await new Promise<void>((resolve) => setTimeout(resolve, 250))
   }
   return false
@@ -68,21 +104,26 @@ export async function syncConfiguredBackground(
   config: BackgroundConfig,
   options: ServiceOptions = {},
 ): Promise<BackgroundApplication> {
-  const isAvailable = options.isCdpAvailableImpl || isCdpAvailable
   const stop = options.stopDaemonImpl || stopDaemon
   const remove = options.removeFromAllTargetsImpl || removeFromAllTargets
 
   if (!config.enabled) {
     const pid = await stop()
-    const targets = (await isAvailable({ port: config.port }))
-      ? await remove({ port: config.port })
-      : 0
+    const { httpReady } = await configuredCdpIsReady(config, options)
+    const targets = httpReady ? await remove({ port: config.port }) : 0
     return { applied: true, mode: "removed", pid, targets }
   }
 
   if (!config.image) return { applied: false, mode: "saved", reason: "image-missing" }
   await imageFileToDataUrl(config.image)
-  if (!(await isAvailable({ port: config.port }))) {
+  const { httpReady, inspection } = await configuredCdpIsReady(config, options)
+  if (inspection.state === "occupied") {
+    throw new BackgroundStateError(
+      "PORT_IN_USE",
+      `Port ${config.port} is in use by a process that is not the configured Codex app.`,
+    )
+  }
+  if (!httpReady) {
     return { applied: false, mode: "saved", reason: "cdp-unavailable" }
   }
 
@@ -110,16 +151,42 @@ export async function startConfiguredBackground(
   }
 
   const running = await (options.isCodexRunningImpl || isCodexRunning)(config.appPath)
-  const cdpAvailable = await (options.isCdpAvailableImpl || isCdpAvailable)({ port: config.port })
-  if (running && !cdpAvailable) {
+  let activeConfig = config
+  let { httpReady, inspection } = await configuredCdpIsReady(activeConfig, options)
+  if (inspection.state === "occupied") {
+    if (running || config.portMode === "fixed") {
+      throw new BackgroundStateError(
+        "PORT_IN_USE",
+        `Port ${config.port} is in use by a process that is not the configured Codex app.`,
+      )
+    }
+    const port = await (options.findAvailableCdpPortImpl || findAvailableCdpPort)(config.port)
+    const candidate = { ...config, port }
+    const selected = await configuredCdpIsReady(candidate, options)
+    if (selected.inspection.state !== "available") {
+      throw new BackgroundStateError(
+        "PORT_IN_USE",
+        `Port ${port} became unavailable before Codex could start. Try again.`,
+      )
+    }
+    activeConfig = await (options.writeConfigImpl || ((next) => writeConfig(next, options)))({
+      ...config,
+      port,
+    })
+    httpReady = selected.httpReady
+  }
+  if (running && !httpReady) {
     throw new BackgroundStateError(
       "RESTART_REQUIRED",
       "Codex is running without background support. Quit Codex normally, keep this page open, then try again.",
     )
   }
   if (!running) {
-    ;(options.launchCodexImpl || launchCodex)({ appPath: config.appPath, port: config.port })
-    if (!(await waitForCdp(config.port, options))) {
+    ;(options.launchCodexImpl || launchCodex)({
+      appPath: activeConfig.appPath,
+      port: activeConfig.port,
+    })
+    if (!(await waitForCdp(activeConfig, options))) {
       throw new BackgroundStateError(
         "CDP_TIMEOUT",
         "Codex started, but the background connection did not become available.",
@@ -127,10 +194,10 @@ export async function startConfiguredBackground(
     }
   }
 
-  const targets = await injectConfiguredBackground(config, options)
+  const targets = await injectConfiguredBackground(activeConfig, options)
   if (!options.entryPath) throw new Error("The CLI entry path is required to start the daemon.")
   const daemon = await (options.ensureDaemonImpl || ensureDaemon)({ entryPath: options.entryPath })
-  return { applied: true, mode: "started", targets, daemon }
+  return { applied: true, mode: "started", port: activeConfig.port, targets, daemon }
 }
 
 export async function backgroundStatus(config: BackgroundConfig, options: ServiceOptions = {}) {
@@ -139,8 +206,10 @@ export async function backgroundStatus(config: BackgroundConfig, options: Servic
         .then(() => true)
         .catch(() => false)
     : false
+  const { httpReady, inspection } = await configuredCdpIsReady(config, options)
   return {
-    cdpAvailable: await (options.isCdpAvailableImpl || isCdpAvailable)({ port: config.port }),
+    cdpAvailable: httpReady,
+    cdpPortState: inspection.state,
     imageReadable,
   }
 }

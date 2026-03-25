@@ -33,7 +33,7 @@ test("settings server requires its random session cookie", async () => {
     const authorized = await fetch(`${origin}/api/state`, { headers: { cookie } })
     assert.equal(authorized.status, 200)
     const state = (await authorized.json()) as { config: { version: number } }
-    assert.equal(state.config.version, 2)
+    assert.equal(state.config.version, 3)
   } finally {
     await new Promise<void>((resolve) => instance.server.close(() => resolve()))
     await rm(dataDirectory, { recursive: true, force: true })

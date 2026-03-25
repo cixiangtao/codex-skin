@@ -31,6 +31,8 @@ interface CdpMessage {
   result?: unknown
 }
 
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"])
+
 export interface CdpOptions {
   WebSocketImpl?: WebSocketConstructor
   timeoutMs?: number
@@ -40,6 +42,16 @@ export interface CdpDiscoveryOptions {
   fetchImpl?: typeof fetch
   host?: string
   port: number
+}
+
+/** Validates that a target cannot redirect the client away from the expected loopback endpoint. */
+export function validatedDebuggerUrl(target: CdpTarget, port: number) {
+  if (!target.webSocketDebuggerUrl) throw new Error("CDP target has no debugger URL.")
+  const url = new URL(target.webSocketDebuggerUrl)
+  if (url.protocol !== "ws:" || !LOOPBACK_HOSTS.has(url.hostname) || Number(url.port) !== port) {
+    throw new Error(`Rejected unexpected CDP WebSocket URL: ${url.href}`)
+  }
+  return url.href
 }
 
 export function isCodexWindowTarget(target: CdpTarget) {
@@ -60,7 +72,15 @@ export async function listPageTargets({
   if (!response.ok) throw new Error(`CDP target discovery failed with HTTP ${response.status}.`)
   const targets = (await response.json()) as unknown
   if (!Array.isArray(targets)) throw new Error("CDP target discovery returned an invalid payload.")
-  return (targets as CdpTarget[]).filter(isCodexWindowTarget)
+  return (targets as CdpTarget[]).filter((target) => {
+    if (!isCodexWindowTarget(target)) return false
+    try {
+      validatedDebuggerUrl(target, port)
+      return true
+    } catch {
+      return false
+    }
+  })
 }
 
 export async function isCdpAvailable({

@@ -1,7 +1,7 @@
 import type { ChildProcess, SpawnOptions } from "node:child_process"
 
 export interface BackgroundConfig {
-  version: 2
+  version: 3
   enabled: boolean
   image: string | null
   illustrationSize: number
@@ -10,6 +10,7 @@ export interface BackgroundConfig {
   illustrationBlur: number
   illustrationOpacity: number
   port: number
+  portMode: "auto" | "fixed"
   pollIntervalMs: number
   appPath: string
 }
@@ -53,6 +54,7 @@ export interface BackgroundApplication {
   daemon?: { pid: number } & Record<string, unknown>
   mode: "injected" | "removed" | "saved" | "started"
   pid?: number | null
+  port?: number
   reason?: "cdp-unavailable" | "image-missing"
   targets?: number
 }

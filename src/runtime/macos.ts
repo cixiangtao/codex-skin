@@ -4,8 +4,26 @@ import path from "node:path"
 import { promisify } from "node:util"
 
 import type { SpawnImplementation } from "./types.ts"
+import { errorCode } from "./types.ts"
 
 const execFileAsync = promisify(execFile)
+
+export interface MacProcess {
+  command: string
+  pid: number
+  ppid: number
+}
+
+export interface CdpPortInspection {
+  codexPid: number | null
+  listenerPids: number[]
+  state: "available" | "codex" | "occupied"
+}
+
+interface PortInspectionOptions {
+  listenerPidsImpl?: (port: number) => Promise<number[]>
+  processTableImpl?: () => Promise<MacProcess[]>
+}
 
 export function resolveAppExecutable(appPath: string) {
   return path.join(path.resolve(appPath), "Contents", "MacOS", "ChatGPT")
@@ -28,6 +46,92 @@ export function processListContainsExecutable(processList: string, executable: s
   return processList
     .split("\n")
     .some((command) => command === executable || command.startsWith(`${executable} `))
+}
+
+export function parseProcessTable(processList: string): MacProcess[] {
+  const processes: MacProcess[] = []
+  for (const line of processList.split("\n")) {
+    const match = line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/)
+    if (!match) continue
+    const [, rawPid, rawParentPid, command] = match
+    if (!rawPid || !rawParentPid || !command) continue
+    processes.push({ command, pid: Number(rawPid), ppid: Number(rawParentPid) })
+  }
+  return processes
+}
+
+async function readProcessTable() {
+  const { stdout } = await execFileAsync("ps", ["-ax", "-o", "pid=,ppid=,command="])
+  return parseProcessTable(stdout)
+}
+
+async function listenerPids(port: number) {
+  try {
+    const { stdout } = await execFileAsync("/usr/sbin/lsof", [
+      "-nP",
+      `-iTCP:${port}`,
+      "-sTCP:LISTEN",
+      "-t",
+    ])
+    return [
+      ...new Set(
+        stdout
+          .split("\n")
+          .map((value) => Number.parseInt(value.trim(), 10))
+          .filter((value) => Number.isInteger(value) && value > 0),
+      ),
+    ]
+  } catch (error) {
+    if (errorCode(error) === "1") return []
+    throw error
+  }
+}
+
+export function processDescendsFrom(processes: MacProcess[], pid: number, ancestorPid: number) {
+  const parents = new Map(processes.map((process) => [process.pid, process.ppid]))
+  let current = pid
+  for (let depth = 0; depth < 32; depth += 1) {
+    if (current === ancestorPid) return true
+    const parent = parents.get(current)
+    if (!parent || parent === current || parent <= 1) return false
+    current = parent
+  }
+  return false
+}
+
+/** Classifies a loopback port without trusting the service responding on it. */
+export async function inspectCdpPort(
+  appPath: string,
+  port: number,
+  options: PortInspectionOptions = {},
+): Promise<CdpPortInspection> {
+  const listeners = await (options.listenerPidsImpl || listenerPids)(port)
+  if (listeners.length === 0) return { codexPid: null, listenerPids: [], state: "available" }
+
+  const processes = await (options.processTableImpl || readProcessTable)()
+  const executable = resolveAppExecutable(appPath)
+  const codex = processes.find(
+    ({ command }) => command === executable || command.startsWith(`${executable} `),
+  )
+  if (!codex) return { codexPid: null, listenerPids: listeners, state: "occupied" }
+
+  const owned = listeners.every((pid) => processDescendsFrom(processes, pid, codex.pid))
+  return {
+    codexPid: codex.pid,
+    listenerPids: listeners,
+    state: owned ? "codex" : "occupied",
+  }
+}
+
+export async function findAvailableCdpPort(
+  preferredPort: number,
+  options: Pick<PortInspectionOptions, "listenerPidsImpl"> = {},
+) {
+  const lastPort = Math.min(65535, preferredPort + 100)
+  for (let port = preferredPort; port <= lastPort; port += 1) {
+    if ((await (options.listenerPidsImpl || listenerPids)(port)).length === 0) return port
+  }
+  throw new Error(`No free loopback port was found between ${preferredPort} and ${lastPort}.`)
 }
 
 export async function isCodexRunning(appPath: string) {

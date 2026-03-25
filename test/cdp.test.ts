@@ -4,14 +4,26 @@ import type { AddressInfo } from "node:net"
 
 import { test } from "vitest"
 
-import { CdpConnection, listPageTargets } from "../src/runtime/cdp.ts"
+import { CdpConnection, listPageTargets, validatedDebuggerUrl } from "../src/runtime/cdp.ts"
 
 test("listPageTargets returns injectable pages only", async () => {
   const server = http.createServer((request, response) => {
+    const { port } = server.address() as AddressInfo
     response.setHeader("content-type", "application/json")
     response.end(
       JSON.stringify([
-        { id: "main", type: "page", url: "app://-/index.html", webSocketDebuggerUrl: "ws://main" },
+        {
+          id: "main",
+          type: "page",
+          url: "app://-/index.html",
+          webSocketDebuggerUrl: `ws://127.0.0.1:${port}/devtools/page/main`,
+        },
+        {
+          id: "external",
+          type: "page",
+          url: "app://-/index.html",
+          webSocketDebuggerUrl: "ws://example.com/devtools/page/external",
+        },
         {
           id: "settings",
           type: "page",
@@ -50,6 +62,21 @@ test("listPageTargets returns injectable pages only", async () => {
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()))
   }
+})
+
+test("validatedDebuggerUrl accepts only the expected loopback port", () => {
+  assert.equal(
+    validatedDebuggerUrl({ webSocketDebuggerUrl: "ws://localhost:9229/devtools/page/1" }, 9229),
+    "ws://localhost:9229/devtools/page/1",
+  )
+  assert.throws(
+    () => validatedDebuggerUrl({ webSocketDebuggerUrl: "ws://127.0.0.1:9230/page/1" }, 9229),
+    /unexpected CDP WebSocket URL/,
+  )
+  assert.throws(
+    () => validatedDebuggerUrl({ webSocketDebuggerUrl: "wss://example.com/page/1" }, 9229),
+    /unexpected CDP WebSocket URL/,
+  )
 })
 
 test("CdpConnection pairs responses with requests", async () => {

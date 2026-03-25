@@ -11,7 +11,7 @@ import type {
 import { errorCode } from "./types.ts"
 
 export const DEFAULT_CONFIG = Object.freeze({
-  version: 2,
+  version: 3,
   enabled: true,
   image: null,
   illustrationSize: 360,
@@ -20,6 +20,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   illustrationBlur: 0,
   illustrationOpacity: 1,
   port: 9229,
+  portMode: "auto",
   pollIntervalMs: 3000,
   appPath: "/Applications/ChatGPT.app",
 } satisfies BackgroundConfig)
@@ -61,9 +62,18 @@ export function normalizeConfig(
       ? path.resolve(workingDirectory, source.appPath.trim())
       : DEFAULT_CONFIG.appPath
   const requestedPort = Math.round(Number(source.port))
+  const validPort =
+    Number.isInteger(requestedPort) && requestedPort >= 1024 && requestedPort <= 65535
+  const port = validPort ? requestedPort : DEFAULT_CONFIG.port
+  const portMode =
+    source.portMode === "auto" || source.portMode === "fixed"
+      ? source.portMode
+      : validPort && port !== DEFAULT_CONFIG.port
+        ? "fixed"
+        : DEFAULT_CONFIG.portMode
 
   return {
-    version: 2,
+    version: 3,
     enabled: source.enabled === undefined ? DEFAULT_CONFIG.enabled : Boolean(source.enabled),
     image,
     illustrationSize: Math.round(
@@ -78,10 +88,8 @@ export function normalizeConfig(
       1,
       DEFAULT_CONFIG.illustrationOpacity,
     ),
-    port:
-      Number.isInteger(requestedPort) && requestedPort >= 1024 && requestedPort <= 65535
-        ? requestedPort
-        : DEFAULT_CONFIG.port,
+    port,
+    portMode,
     pollIntervalMs: Math.round(
       clampNumber(source.pollIntervalMs, 500, 60_000, DEFAULT_CONFIG.pollIntervalMs),
     ),

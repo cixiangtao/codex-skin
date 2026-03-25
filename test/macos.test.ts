@@ -4,6 +4,10 @@ import { test } from "vitest"
 
 import {
   buildLaunchArguments,
+  findAvailableCdpPort,
+  inspectCdpPort,
+  parseProcessTable,
+  processDescendsFrom,
   processListContainsExecutable,
   resolveAppExecutable,
 } from "../src/runtime/macos.ts"
@@ -12,6 +16,46 @@ test("resolveAppExecutable targets the signed app executable", () => {
   assert.equal(
     resolveAppExecutable("/Applications/ChatGPT.app"),
     "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT",
+  )
+})
+
+test("inspectCdpPort accepts only listeners in the Codex process tree", async () => {
+  const executable = resolveAppExecutable("/Applications/ChatGPT.app")
+  const processes = parseProcessTable(
+    [
+      `10 1 ${executable} --remote-debugging-port=9229`,
+      "11 10 /Applications/ChatGPT.app/Contents/Frameworks/Codex Helper",
+      "20 1 /Applications/Other.app/Other",
+    ].join("\n"),
+  )
+  assert.equal(processDescendsFrom(processes, 11, 10), true)
+  assert.equal(processDescendsFrom(processes, 20, 10), false)
+
+  const codex = await inspectCdpPort("/Applications/ChatGPT.app", 9229, {
+    listenerPidsImpl: async () => [10, 11],
+    processTableImpl: async () => processes,
+  })
+  assert.equal(codex.state, "codex")
+
+  const occupied = await inspectCdpPort("/Applications/ChatGPT.app", 9229, {
+    listenerPidsImpl: async () => [11, 20],
+    processTableImpl: async () => processes,
+  })
+  assert.equal(occupied.state, "occupied")
+
+  const available = await inspectCdpPort("/Applications/ChatGPT.app", 9229, {
+    listenerPidsImpl: async () => [],
+    processTableImpl: async () => processes,
+  })
+  assert.equal(available.state, "available")
+})
+
+test("findAvailableCdpPort scans forward from a preferred collision", async () => {
+  assert.equal(
+    await findAvailableCdpPort(9229, {
+      listenerPidsImpl: async (port) => (port < 9231 ? [42] : []),
+    }),
+    9231,
   )
 })
 

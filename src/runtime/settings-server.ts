@@ -304,8 +304,9 @@ export function createSettingsHttpServer(options: SettingsOptions) {
       if (request.method === "POST" && url.pathname === "/api/start") {
         const config = await readConfig({ dataDirectory })
         const application = await startConfiguredBackground(config, runtimeOptions)
+        const activeConfig = await readConfig({ dataDirectory })
         sendJson(response, 200, {
-          ...(await statePayload(config, runtimeOptions)),
+          ...(await statePayload(activeConfig, runtimeOptions)),
           application,
         })
         return
