@@ -232,7 +232,7 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
       return 0
     }
     case "daemon":
-      await runDaemon()
+      await runDaemon({ entryPath })
       return 0
     case "settings-server":
       await runSettingsServerDaemon({ entryPath })
