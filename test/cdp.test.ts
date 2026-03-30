@@ -148,3 +148,45 @@ test("CdpConnection surfaces protocol errors", async () => {
   await connection.connect()
   await assert.rejects(() => connection.call("Runtime.evaluate"), /denied/)
 })
+
+test("CdpConnection emits protocol events to persistent sessions", async () => {
+  class EventWebSocket extends EventTarget {
+    static OPEN = 1
+    readyState = 0
+
+    constructor() {
+      super()
+      queueMicrotask(() => {
+        this.readyState = EventWebSocket.OPEN
+        this.dispatchEvent(new Event("open"))
+      })
+    }
+
+    send(payload: string) {
+      const { id } = JSON.parse(payload) as { id: number }
+      queueMicrotask(() => {
+        const response = new Event("message")
+        Object.defineProperty(response, "data", { value: JSON.stringify({ id, result: {} }) })
+        this.dispatchEvent(response)
+        const protocolEvent = new Event("message")
+        Object.defineProperty(protocolEvent, "data", {
+          value: JSON.stringify({ method: "Page.loadEventFired", params: { timestamp: 1 } }),
+        })
+        this.dispatchEvent(protocolEvent)
+      })
+    }
+
+    close() {
+      this.readyState = 3
+    }
+  }
+
+  const connection = new CdpConnection("ws://test", { WebSocketImpl: EventWebSocket })
+  const events: unknown[] = []
+  connection.on("Page.loadEventFired", (params) => events.push(params))
+  await connection.connect()
+  await connection.call("Page.enable")
+  await new Promise<void>((resolve) => queueMicrotask(resolve))
+  assert.deepEqual(events, [{ timestamp: 1 }])
+  connection.close()
+})

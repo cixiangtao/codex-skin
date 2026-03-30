@@ -28,8 +28,12 @@ interface PendingCall {
 interface CdpMessage {
   error?: { message?: string }
   id?: number
+  method?: string
+  params?: unknown
   result?: unknown
 }
+
+type CdpEventListener = (params: unknown) => void
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"])
 
@@ -104,7 +108,12 @@ export class CdpConnection {
   readonly timeoutMs: number
   private nextId = 1
   private readonly pending = new Map<number, PendingCall>()
+  private readonly listeners = new Map<string, Set<CdpEventListener>>()
   private socket: WebSocketLike | null = null
+
+  get connected() {
+    return this.socket?.readyState === this.WebSocketImpl.OPEN
+  }
 
   constructor(url: string, options: CdpOptions = {}) {
     this.url = url
@@ -161,6 +170,13 @@ export class CdpConnection {
     this.socket = null
   }
 
+  on(method: string, listener: CdpEventListener) {
+    const listeners = this.listeners.get(method) || new Set<CdpEventListener>()
+    listeners.add(listener)
+    this.listeners.set(method, listeners)
+    return () => listeners.delete(listener)
+  }
+
   private handleMessage(event: MessageEvent) {
     let message: CdpMessage
     try {
@@ -168,7 +184,11 @@ export class CdpConnection {
     } catch {
       return
     }
-    if (!message.id) return
+    if (!message.id) {
+      if (!message.method) return
+      for (const listener of this.listeners.get(message.method) || []) listener(message.params)
+      return
+    }
     const pending = this.pending.get(message.id)
     if (!pending) return
     clearTimeout(pending.timer)

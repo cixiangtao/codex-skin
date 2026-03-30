@@ -6,8 +6,8 @@ import { promisify } from "node:util"
 import { isCdpAvailable } from "./cdp.ts"
 import { readConfig, resolveDataDirectory } from "./config.ts"
 import { buildBackgroundCss } from "./css.ts"
-import { injectAllTargets } from "./injector.ts"
-import { findCodexProcessId } from "./macos.ts"
+import { TargetSessionManager } from "./injector.ts"
+import { findCodexProcessId, inspectCdpPort } from "./macos.ts"
 import type { DataDirectoryOptions, SpawnImplementation } from "./types.ts"
 import { errorCode, errorMessage } from "./types.ts"
 
@@ -192,6 +192,8 @@ export async function runDaemon(options: DaemonOptions = {}) {
   process.once("SIGINT", stop)
   let cachedConfig = ""
   let cachedCss = ""
+  let targetSessions: TargetSessionManager | undefined
+  let sessionPort: number | undefined
 
   try {
     while (!stopping) {
@@ -203,13 +205,27 @@ export async function runDaemon(options: DaemonOptions = {}) {
         if (codexPid) observedCodex = true
         else if (codexLifecycleEnded(observedCodex, codexPid)) break
 
-        if (config.enabled && config.image && (await isCdpAvailable({ port: config.port }))) {
+        const cdpPort = await inspectCdpPort(config.appPath, config.port)
+        const cdpReady = cdpPort.state === "codex" && (await isCdpAvailable({ port: config.port }))
+        if (config.enabled && config.image && cdpReady) {
           const signature = JSON.stringify(config)
           if (signature !== cachedConfig) {
             cachedCss = await buildBackgroundCss(config)
             cachedConfig = signature
           }
-          const results = await injectAllTargets({ css: cachedCss, port: config.port })
+          if (!targetSessions || sessionPort !== config.port) {
+            targetSessions?.close()
+            sessionPort = config.port
+            targetSessions = new TargetSessionManager({
+              port: config.port,
+              onError: (error) => {
+                appendFile(paths.log, `${new Date().toISOString()} ${error.message}\n`, {
+                  mode: 0o600,
+                }).catch(() => undefined)
+              },
+            })
+          }
+          const results = await targetSessions.synchronize(cachedCss)
           const now = new Date().toISOString()
           await writeFile(
             paths.state,
@@ -235,6 +251,7 @@ export async function runDaemon(options: DaemonOptions = {}) {
       await new Promise<void>((resolve) => setTimeout(resolve, pollIntervalMs))
     }
   } finally {
+    targetSessions?.close()
     const current = await readFile(paths.process, "utf8")
       .then((value) => JSON.parse(value) as DaemonIdentity)
       .catch(() => null)
