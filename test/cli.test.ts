@@ -40,6 +40,13 @@ test("parseArguments accepts the visual settings command", () => {
   assert.deepEqual(parseArguments(["settings"]), { command: "settings", options: {} })
 })
 
+test("parseArguments accepts automatic port selection", () => {
+  assert.deepEqual(parseArguments(["configure", "--auto-port"]), {
+    command: "configure",
+    options: { autoPort: true },
+  })
+})
+
 test("parseArguments launches the complete experience by default", () => {
   assert.deepEqual(parseArguments([]), { command: "launch", options: {} })
 })

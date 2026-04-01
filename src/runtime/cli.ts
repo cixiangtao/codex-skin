@@ -1,8 +1,11 @@
 import { access } from "node:fs/promises"
 import path from "node:path"
 
-import { injectConfiguredBackground, startConfiguredBackground } from "./background-service.ts"
-import { isCdpAvailable } from "./cdp.ts"
+import {
+  configuredCdpIsReady,
+  injectConfiguredBackground,
+  startConfiguredBackground,
+} from "./background-service.ts"
 import { readConfig, resolveConfigPath, writeConfig } from "./config.ts"
 import { imageFileToDataUrl } from "./css.ts"
 import { readDaemonPid, runDaemon, stopDaemon } from "./daemon.ts"
@@ -16,7 +19,7 @@ import {
 } from "./settings-server.ts"
 import type { BackgroundConfig, BackgroundConfigInput } from "./types.ts"
 
-type CommandOption = keyof BackgroundConfigInput | "disabled"
+type CommandOption = keyof BackgroundConfigInput | "autoPort" | "disabled"
 
 interface CommandIo {
   log(message: string): void
@@ -38,8 +41,9 @@ const OPTION_NAMES = new Map<string, CommandOption>([
   ["--app-path", "appPath"],
   ["--enable", "enabled"],
   ["--disable", "disabled"],
+  ["--auto-port", "autoPort"],
 ])
-const BOOLEAN_OPTIONS = new Set(["--enable", "--disable"])
+const BOOLEAN_OPTIONS = new Set(["--auto-port", "--enable", "--disable"])
 const DEVELOPMENT_API_PORT = 4179
 const DEVELOPMENT_UI_URL = "http://127.0.0.1:4178/"
 
@@ -60,6 +64,7 @@ Options:
   --blur 0..30                 Illustration-only blur in pixels
   --opacity 0..1               Illustration-only opacity
   --port 1024..65535           Loopback CDP port (default 9229)
+  --auto-port                  Automatically move away from port collisions
   --app-path PATH              ChatGPT.app location
 `
 
@@ -95,6 +100,12 @@ async function configure(options: Record<string, string | boolean>, io: CommandI
   if (updates.disabled) {
     updates.enabled = false
     delete updates.disabled
+  }
+  if (updates.autoPort) {
+    updates.portMode = "auto"
+    delete updates.autoPort
+  } else if (updates.port !== undefined) {
+    updates.portMode = "fixed"
   }
   if (typeof updates.image === "string") {
     updates.image = path.resolve(updates.image)
@@ -141,6 +152,14 @@ async function launch(entryPath: string, io: CommandIo) {
   )
 }
 
+async function requireConfiguredCdp(config: BackgroundConfig) {
+  const { httpReady, inspection } = await configuredCdpIsReady(config)
+  if (inspection.state === "occupied") {
+    throw new Error(`Port ${config.port} is not owned by the configured Codex app.`)
+  }
+  if (!httpReady) throw new Error(`CDP is not available on 127.0.0.1:${config.port}.`)
+}
+
 export function isSupportedNodeVersion(version = process.versions.node) {
   const major = Number.parseInt(version.split(".", 1)[0] || "0", 10)
   return major >= 22
@@ -148,6 +167,7 @@ export function isSupportedNodeVersion(version = process.versions.node) {
 
 async function doctor(io: CommandIo) {
   const config = await readConfig()
+  const cdp = await configuredCdpIsReady(config)
   const checks: Array<[string, boolean]> = [
     ["Node.js 22+", isSupportedNodeVersion()],
     ["ChatGPT executable", await appExecutableExists(config.appPath)],
@@ -160,7 +180,7 @@ async function doctor(io: CommandIo) {
             .catch(() => false)
         : false,
     ],
-    [`CDP 127.0.0.1:${config.port}`, await isCdpAvailable({ port: config.port })],
+    [`Codex-owned CDP 127.0.0.1:${config.port}`, cdp.httpReady],
     ["Background daemon", Boolean(await readDaemonPid())],
   ]
   for (const [label, passed] of checks) io.log(`${passed ? "✓" : "·"} ${label}`)
@@ -200,16 +220,14 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
     }
     case "inject": {
       const config = await readConfig()
-      if (!(await isCdpAvailable({ port: config.port }))) {
-        throw new Error(`CDP is not available on 127.0.0.1:${config.port}.`)
-      }
+      await requireConfiguredCdp(config)
       io.log(`Injected ${await injectConfiguredBackground(config)} Codex window(s).`)
       return 0
     }
     case "stop": {
       const config = await readConfig()
       const pid = await stopDaemon()
-      if (await isCdpAvailable({ port: config.port })) {
+      if ((await configuredCdpIsReady(config)).httpReady) {
         await removeFromAllTargets({ port: config.port })
       }
       io.log(pid ? `Stopped background daemon ${pid}.` : "Background daemon was not running.")
@@ -225,7 +243,7 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
       const config = await readConfig()
       await writeConfig({ ...config, enabled: false })
       await stopDaemon()
-      if (await isCdpAvailable({ port: config.port })) {
+      if ((await configuredCdpIsReady(config)).httpReady) {
         await removeFromAllTargets({ port: config.port })
       }
       io.log("Codex Background disabled. Codex itself was left running.")
