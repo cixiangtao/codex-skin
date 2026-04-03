@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 
 import { test } from "vitest"
 
-import { isSupportedNodeVersion, parseArguments } from "../src/runtime/cli.ts"
+import { isSupportedNodeVersion, parseArguments, verificationChecks } from "../src/runtime/cli.ts"
 
 test("parseArguments reads configure options without evaluating shell text", () => {
   assert.deepEqual(
@@ -40,11 +40,41 @@ test("parseArguments accepts the visual settings command", () => {
   assert.deepEqual(parseArguments(["settings"]), { command: "settings", options: {} })
 })
 
+test("parseArguments accepts reload verification", () => {
+  assert.deepEqual(parseArguments(["verify", "--reload"]), {
+    command: "verify",
+    options: { reload: true },
+  })
+})
+
 test("parseArguments accepts automatic port selection", () => {
   assert.deepEqual(parseArguments(["configure", "--auto-port"]), {
     command: "configure",
     options: { autoPort: true },
   })
+})
+
+test("verificationChecks explains each visible failure", () => {
+  assert.deepEqual(
+    verificationChecks({
+      backgroundImage: "none",
+      enabled: true,
+      hashMatches: false,
+      href: "app://-/index.html",
+      pass: false,
+      pointerEvents: "auto",
+      stylePresent: true,
+      surfacePresent: false,
+    }),
+    [
+      ["injection marker enabled", true],
+      ["background style present", true],
+      ["configuration hash matches", false],
+      ["workspace surface found", false],
+      ["pseudo-element background image active", false],
+      ["decorative layer ignores pointer events", false],
+    ],
+  )
 })
 
 test("parseArguments launches the complete experience by default", () => {

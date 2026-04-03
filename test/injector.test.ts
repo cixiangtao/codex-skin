@@ -5,8 +5,10 @@ import { test } from "vitest"
 import {
   BACKGROUND_STYLE_ID,
   TargetSessionManager,
+  backgroundCssHash,
   buildInjectionExpression,
   buildRemovalExpression,
+  buildVerificationExpression,
   evaluateOnTarget,
 } from "../src/runtime/injector.ts"
 
@@ -17,6 +19,14 @@ test("buildInjectionExpression is idempotent and preserves arbitrary CSS", () =>
   assert.match(expression, /setTimeout/)
   assert.match(expression, /textContent/)
   assert.match(expression, /<\\\/style>/)
+})
+
+test("buildVerificationExpression checks the exact applied CSS", () => {
+  const css = ".main-surface::before { content: ''; }"
+  const expression = buildVerificationExpression(css)
+  assert.match(expression, new RegExp(backgroundCssHash(css)))
+  assert.match(expression, /backgroundImage/)
+  assert.match(expression, /pointerEvents/)
 })
 
 test("evaluateOnTarget surfaces renderer exceptions", async () => {

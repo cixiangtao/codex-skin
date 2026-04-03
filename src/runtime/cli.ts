@@ -7,9 +7,10 @@ import {
   startConfiguredBackground,
 } from "./background-service.ts"
 import { readConfig, resolveConfigPath, writeConfig } from "./config.ts"
-import { imageFileToDataUrl } from "./css.ts"
+import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
 import { readDaemonPid, runDaemon, stopDaemon } from "./daemon.ts"
-import { removeFromAllTargets } from "./injector.ts"
+import { removeFromAllTargets, verifyAllTargets } from "./injector.ts"
+import type { TargetVerification } from "./injector.ts"
 import { appExecutableExists } from "./macos.ts"
 import {
   ensureSettingsServer,
@@ -19,7 +20,7 @@ import {
 } from "./settings-server.ts"
 import type { BackgroundConfig, BackgroundConfigInput } from "./types.ts"
 
-type CommandOption = keyof BackgroundConfigInput | "autoPort" | "disabled"
+type CommandOption = keyof BackgroundConfigInput | "autoPort" | "disabled" | "reload"
 
 interface CommandIo {
   log(message: string): void
@@ -41,9 +42,10 @@ const OPTION_NAMES = new Map<string, CommandOption>([
   ["--app-path", "appPath"],
   ["--enable", "enabled"],
   ["--disable", "disabled"],
+  ["--reload", "reload"],
   ["--auto-port", "autoPort"],
 ])
-const BOOLEAN_OPTIONS = new Set(["--auto-port", "--enable", "--disable"])
+const BOOLEAN_OPTIONS = new Set(["--auto-port", "--enable", "--disable", "--reload"])
 const DEVELOPMENT_API_PORT = 4179
 const DEVELOPMENT_UI_URL = "http://127.0.0.1:4178/"
 
@@ -54,6 +56,7 @@ Usage:
   codex-background settings              Open the visual settings page
   codex-background configure [options]   Update settings from the terminal
   codex-background doctor                Check the local runtime
+  codex-background verify [--reload]     Verify the visible background
   codex-background stop                  Remove the background
 
 Options:
@@ -66,6 +69,7 @@ Options:
   --port 1024..65535           Loopback CDP port (default 9229)
   --auto-port                  Automatically move away from port collisions
   --app-path PATH              ChatGPT.app location
+  --reload                     Reload Codex before functional verification
 `
 
 export function parseArguments(argv: string[]) {
@@ -160,6 +164,20 @@ async function requireConfiguredCdp(config: BackgroundConfig) {
   if (!httpReady) throw new Error(`CDP is not available on 127.0.0.1:${config.port}.`)
 }
 
+export function verificationChecks(result: TargetVerification) {
+  return [
+    ["injection marker enabled", result.enabled],
+    ["background style present", result.stylePresent],
+    ["configuration hash matches", result.hashMatches],
+    ["workspace surface found", result.surfacePresent],
+    [
+      "pseudo-element background image active",
+      result.backgroundImage !== "" && result.backgroundImage !== "none",
+    ],
+    ["decorative layer ignores pointer events", result.pointerEvents === "none"],
+  ] as const
+}
+
 export function isSupportedNodeVersion(version = process.versions.node) {
   const major = Number.parseInt(version.split(".", 1)[0] || "0", 10)
   return major >= 22
@@ -213,6 +231,25 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
       return 0
     case "doctor":
       return await doctor(io)
+    case "verify": {
+      const config = await readConfig()
+      await requireConfiguredCdp(config)
+      const results = await verifyAllTargets({
+        css: await buildBackgroundCss(config),
+        port: config.port,
+        reload: commandOptions.reload === true,
+      })
+      for (const result of results) {
+        const label = result.title || result.url || result.id || "Codex window"
+        io.log(`${result.pass ? "✓" : "✗"} ${label}${result.error ? ` — ${result.error}` : ""}`)
+        if (!result.pass) {
+          for (const [check, passed] of verificationChecks(result)) {
+            io.log(`  ${passed ? "✓" : "✗"} ${check}`)
+          }
+        }
+      }
+      return results.length > 0 && results.every((result) => result.pass) ? 0 : 1
+    }
     case "start": {
       const result = await startConfiguredBackground(await readConfig(), { entryPath })
       io.log(`Injected ${result.targets ?? 0} Codex window(s).`)
