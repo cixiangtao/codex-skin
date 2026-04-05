@@ -32,12 +32,16 @@ The local settings page supports:
 
 Settings and uploaded images remain in `~/.config/codex-background/`. The settings server binds only to `127.0.0.1`, uses a random session token, and shuts down after 30 minutes without a request.
 
+The default CDP port is managed automatically: if another process owns it, the launcher selects and saves a free loopback port. Passing `configure --port PORT` makes that port fixed; use `configure --auto-port` to return to automatic selection. A responding port is accepted only when every listener belongs to the configured Codex process tree.
+
 ## Commands
 
 ```bash
 npx @anys/codex-background                # open settings and start background mode
 npx @anys/codex-background settings       # open settings only
 npx @anys/codex-background doctor         # inspect the local runtime
+npx @anys/codex-background verify         # verify that the background is visibly applied
+npx @anys/codex-background verify --reload # verify reload recovery
 npx @anys/codex-background show           # print normalized configuration
 npx @anys/codex-background stop           # remove the injected layer
 npx @anys/codex-background disable        # stop and persist the disabled state
