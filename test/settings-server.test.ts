@@ -18,10 +18,10 @@ async function authenticatedSession(url: string) {
 }
 
 test("settings server requires its random session cookie", async () => {
-  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-background-settings-"))
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-"))
   const instance = await listenSettingsServer({
     dataDirectory,
-    entryPath: "/tmp/codex-background.ts",
+    entryPath: "/tmp/codex-skin.ts",
     token: "test-token",
     isCdpAvailableImpl: async () => false,
   })
@@ -41,11 +41,11 @@ test("settings server requires its random session cookie", async () => {
 })
 
 test("settings server redirects an authenticated development session to the Vite UI", async () => {
-  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-background-settings-"))
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-"))
   const instance = await listenSettingsServer({
     authenticatedRedirectUrl: "http://127.0.0.1:4178/",
     dataDirectory,
-    entryPath: "/tmp/codex-background.ts",
+    entryPath: "/tmp/codex-skin.ts",
     token: "development-token",
     isCdpAvailableImpl: async () => false,
   })
@@ -53,7 +53,7 @@ test("settings server redirects an authenticated development session to the Vite
     const bootstrap = await fetch(instance.url, { redirect: "manual" })
     assert.equal(bootstrap.status, 303)
     assert.equal(bootstrap.headers.get("location"), "http://127.0.0.1:4178/")
-    assert.match(bootstrap.headers.get("set-cookie") || "", /codex_background_settings=/)
+    assert.match(bootstrap.headers.get("set-cookie") || "", /codex_skin_settings=/)
   } finally {
     await new Promise<void>((resolve) => instance.server.close(() => resolve()))
     await rm(dataDirectory, { recursive: true, force: true })
@@ -61,13 +61,13 @@ test("settings server redirects an authenticated development session to the Vite
 })
 
 test("settings server saves controls and accepts a local image upload", async () => {
-  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-background-settings-"))
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-"))
   const originalImage = path.join(dataDirectory, "original.jpg")
   await writeFile(originalImage, Buffer.from([0xff, 0xd8, 0xff]))
   await writeConfig({ image: originalImage }, { dataDirectory })
   const instance = await listenSettingsServer({
     dataDirectory,
-    entryPath: "/tmp/codex-background.ts",
+    entryPath: "/tmp/codex-skin.ts",
     token: "test-token",
     isCdpAvailableImpl: async () => false,
   })

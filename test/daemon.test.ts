@@ -16,22 +16,22 @@ test("daemon exits only after an observed Codex process disappears", () => {
 
 test("daemon identity rejects a recycled pid or unrelated command", () => {
   const identity = {
-    command: "/opt/node /tmp/codex-background.js daemon",
-    entryPath: "/tmp/codex-background.js",
+    command: "/opt/node /tmp/codex-skin.js daemon",
+    entryPath: "/tmp/codex-skin.js",
     executable: "/opt/node",
     pid: 42,
     startedAt: "Thu Jul 16 14:00:00 2026",
   }
   assert.equal(
     daemonIdentityMatches(identity, {
-      command: "/opt/node /tmp/codex-background.js daemon",
+      command: "/opt/node /tmp/codex-skin.js daemon",
       startedAt: identity.startedAt,
     }),
     true,
   )
   assert.equal(
     daemonIdentityMatches(identity, {
-      command: "/opt/node /tmp/codex-background.js daemon",
+      command: "/opt/node /tmp/codex-skin.js daemon",
       startedAt: "Thu Jul 16 15:00:00 2026",
     }),
     false,
@@ -46,14 +46,14 @@ test("daemon identity rejects a recycled pid or unrelated command", () => {
 })
 
 test("legacy daemon migration accepts only the exact executable and entry path", () => {
-  const entryPath = "/tmp/codex-background.js"
+  const entryPath = "/tmp/codex-skin.js"
   assert.equal(
     legacyDaemonCommandMatches(`${process.execPath} ${entryPath} daemon`, entryPath),
     true,
   )
   assert.equal(
     legacyDaemonCommandMatches(
-      `${process.execPath} /tmp/old-package/dist/bin/codex-background.js daemon`,
+      `${process.execPath} /tmp/old-package/dist/bin/codex-skin.js daemon`,
       entryPath,
     ),
     true,

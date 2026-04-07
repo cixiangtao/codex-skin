@@ -5,7 +5,7 @@ import type { CdpOptions, CdpDiscoveryOptions } from "./cdp.ts"
 import type { CdpTarget, InjectionResult } from "./types.ts"
 import { errorMessage } from "./types.ts"
 
-export const BACKGROUND_STYLE_ID = "codex-background-style"
+export const BACKGROUND_STYLE_ID = "codex-skin-style"
 
 interface RuntimeEvaluateResponse {
   exceptionDetails?: {
@@ -66,9 +66,9 @@ export function buildInjectionExpression(css: string) {
         (document.head || document.documentElement).appendChild(style);
       }
       if (style.textContent !== css) style.textContent = css;
-      style.dataset.codexBackgroundHash = ${serializedHash};
+      style.dataset.codexSkinHash = ${serializedHash};
     };
-    window.__codexBackgroundCleanup?.();
+    window.__codexSkinCleanup?.();
     install();
     let installTimer;
     const scheduleInstall = () => {
@@ -77,11 +77,11 @@ export function buildInjectionExpression(css: string) {
     };
     const observer = new MutationObserver(scheduleInstall);
     observer.observe(document.documentElement, { childList: true, subtree: true });
-    window.__codexBackgroundCleanup = () => {
+    window.__codexSkinCleanup = () => {
       observer.disconnect();
       clearTimeout(installTimer);
     };
-    document.documentElement.dataset.codexBackground = "enabled";
+    document.documentElement.dataset.codexSkin = "enabled";
     return { installed: true, styleId, href: location.href };
   })()`
 }
@@ -95,9 +95,9 @@ export function buildVerificationExpression(css: string) {
     const pseudo = surface ? getComputedStyle(surface, '::before') : null;
     const result = {
       href: location.href,
-      enabled: document.documentElement.dataset.codexBackground === 'enabled',
+      enabled: document.documentElement.dataset.codexSkin === 'enabled',
       stylePresent: Boolean(style),
-      hashMatches: style?.dataset.codexBackgroundHash === ${serializedHash},
+      hashMatches: style?.dataset.codexSkinHash === ${serializedHash},
       surfacePresent: Boolean(surface),
       backgroundImage: pseudo?.backgroundImage || '',
       pointerEvents: pseudo?.pointerEvents || '',
@@ -134,10 +134,10 @@ export async function evaluateOnConnection<Result>(connection: CdpConnection, ex
 export function buildRemovalExpression() {
   const serializedId = serializeForJavaScript(BACKGROUND_STYLE_ID)
   return `(() => {
-    window.__codexBackgroundCleanup?.();
-    delete window.__codexBackgroundCleanup;
+    window.__codexSkinCleanup?.();
+    delete window.__codexSkinCleanup;
     document.getElementById(${serializedId})?.remove();
-    delete document.documentElement.dataset.codexBackground;
+    delete document.documentElement.dataset.codexSkin;
     return { installed: false, href: location.href };
   })()`
 }

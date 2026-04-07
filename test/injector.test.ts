@@ -155,5 +155,5 @@ test("TargetSessionManager reuses sessions and reinjects after reload", async ()
 test("buildRemovalExpression removes the style and observer", () => {
   const expression = buildRemovalExpression()
   assert.match(expression, /remove\(\)/)
-  assert.match(expression, /codexBackgroundCleanup/)
+  assert.match(expression, /codexSkinCleanup/)
 })

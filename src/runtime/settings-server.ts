@@ -28,7 +28,7 @@ const MAX_JSON_BYTES = 64 * 1024
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024
 const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000
 const defaultUiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../dist/ui")
-const COOKIE_NAME = "codex_background_settings"
+const COOKIE_NAME = "codex_skin_settings"
 const EDITABLE_CONFIG_KEYS = new Set([
   "enabled",
   "illustrationSize",

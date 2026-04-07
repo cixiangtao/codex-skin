@@ -13,10 +13,22 @@ import {
   writeConfig,
 } from "../src/runtime/config.ts"
 
-test("resolveDataDirectory prefers the explicit background home", () => {
+test("resolveDataDirectory prefers the skin home and supports the legacy override", () => {
   assert.equal(
-    resolveDataDirectory({ CODEX_BACKGROUND_HOME: "/tmp/background-data", HOME: "/tmp/home" }),
-    "/tmp/background-data",
+    resolveDataDirectory({
+      CODEX_BACKGROUND_HOME: "/tmp/legacy-data",
+      CODEX_SKIN_HOME: "/tmp/skin-data",
+      HOME: "/tmp/home",
+    }),
+    "/tmp/skin-data",
+  )
+  assert.equal(
+    resolveDataDirectory({ CODEX_BACKGROUND_HOME: "/tmp/legacy-data", HOME: "/tmp/home" }),
+    "/tmp/legacy-data",
+  )
+  assert.equal(
+    resolveDataDirectory({ XDG_CONFIG_HOME: "/tmp/xdg", HOME: "/tmp/home" }),
+    "/tmp/xdg/codex-skin",
   )
 })
 
@@ -42,7 +54,7 @@ test("normalizeConfig clamps unsafe numeric values", () => {
 })
 
 test("writeConfig persists normalized JSON atomically", async () => {
-  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-background-"))
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-"))
   try {
     const written = await writeConfig(
       {
@@ -76,7 +88,7 @@ test("normalizeConfig migrates old default and custom ports", () => {
 })
 
 test("readConfig returns defaults when no file exists", async () => {
-  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-background-"))
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-"))
   try {
     assert.deepEqual(await readConfig({ dataDirectory }), DEFAULT_CONFIG)
   } finally {

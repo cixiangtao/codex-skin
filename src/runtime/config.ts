@@ -26,11 +26,13 @@ export const DEFAULT_CONFIG = Object.freeze({
 } satisfies BackgroundConfig)
 
 export function resolveDataDirectory(env: NodeJS.ProcessEnv = process.env) {
+  if (env.CODEX_SKIN_HOME) return path.resolve(env.CODEX_SKIN_HOME)
+  // Keep the pre-rename override working for existing local development setups.
   if (env.CODEX_BACKGROUND_HOME) return path.resolve(env.CODEX_BACKGROUND_HOME)
   if (env.XDG_CONFIG_HOME) {
-    return path.join(path.resolve(env.XDG_CONFIG_HOME), "codex-background")
+    return path.join(path.resolve(env.XDG_CONFIG_HOME), "codex-skin")
   }
-  return path.join(path.resolve(env.HOME || os.homedir()), ".config", "codex-background")
+  return path.join(path.resolve(env.HOME || os.homedir()), ".config", "codex-skin")
 }
 
 export function resolveConfigPath(options: DataDirectoryOptions = {}) {

@@ -8,7 +8,7 @@ import { test } from "vitest"
 import { buildBackgroundCss, imageFileToDataUrl } from "../src/runtime/css.ts"
 
 test("imageFileToDataUrl embeds supported images", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-background-"))
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-"))
   try {
     const image = path.join(directory, "wallpaper.webp")
     await writeFile(image, Buffer.from([0x52, 0x49, 0x46, 0x46]))
@@ -23,7 +23,7 @@ test("imageFileToDataUrl rejects unsupported extensions", async () => {
 })
 
 test("buildBackgroundCss adds a small illustration without replacing native surface colors", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-background-"))
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-"))
   try {
     const image = path.join(directory, "wallpaper.png")
     await writeFile(image, Buffer.from([0x89, 0x50, 0x4e, 0x47]))

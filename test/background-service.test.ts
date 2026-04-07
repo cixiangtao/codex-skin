@@ -31,12 +31,12 @@ test("syncConfiguredBackground removes injected styling when disabled", async ()
 })
 
 test("syncConfiguredBackground applies valid settings and keeps the daemon alive", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-background-service-"))
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
   try {
     const image = path.join(directory, "wallpaper.png")
     await writeFile(image, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
     const result = await syncConfiguredBackground(normalizeConfig({ image }), {
-      entryPath: "/tmp/codex-background.mjs",
+      entryPath: "/tmp/codex-skin.mjs",
       isCdpAvailableImpl: async () => true,
       injectAllTargetsImpl: async () => [{ ok: true }, { ok: true }],
       ensureDaemonImpl: async ({ entryPath }) => ({ pid: 9, entryPath }),
@@ -45,21 +45,21 @@ test("syncConfiguredBackground applies valid settings and keeps the daemon alive
     assert.equal(result.applied, true)
     assert.equal(result.mode, "injected")
     assert.equal(result.targets, 2)
-    assert.deepEqual(result.daemon, { pid: 9, entryPath: "/tmp/codex-background.mjs" })
+    assert.deepEqual(result.daemon, { pid: 9, entryPath: "/tmp/codex-skin.mjs" })
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
 })
 
 test("startConfiguredBackground preserves a running Codex process", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-background-service-"))
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
   try {
     const image = path.join(directory, "wallpaper.jpg")
     await writeFile(image, Buffer.from([0xff, 0xd8, 0xff]))
     await assert.rejects(
       () =>
         startConfiguredBackground(normalizeConfig({ image }), {
-          entryPath: "/tmp/codex-background.mjs",
+          entryPath: "/tmp/codex-skin.mjs",
           appExecutableExistsImpl: async () => true,
           isCodexRunningImpl: async () => true,
           isCdpAvailableImpl: async () => false,
@@ -72,14 +72,14 @@ test("startConfiguredBackground preserves a running Codex process", async () => 
 })
 
 test("startConfiguredBackground rejects a fixed port owned by another process", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-background-service-"))
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
   try {
     const image = path.join(directory, "wallpaper.png")
     await writeFile(image, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
     await assert.rejects(
       () =>
         startConfiguredBackground(normalizeConfig({ image, port: 9341, portMode: "fixed" }), {
-          entryPath: "/tmp/codex-background.mjs",
+          entryPath: "/tmp/codex-skin.mjs",
           appExecutableExistsImpl: async () => true,
           inspectCdpPortImpl: async () => ({
             codexPid: null,
@@ -96,7 +96,7 @@ test("startConfiguredBackground rejects a fixed port owned by another process", 
 })
 
 test("startConfiguredBackground moves an automatic port away from a collision", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-background-service-"))
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
   try {
     const image = path.join(directory, "wallpaper.png")
     await writeFile(image, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
@@ -105,7 +105,7 @@ test("startConfiguredBackground moves an automatic port away from a collision", 
     const result = await startConfiguredBackground(
       normalizeConfig({ image, port: 9229, portMode: "auto" }),
       {
-        entryPath: "/tmp/codex-background.mjs",
+        entryPath: "/tmp/codex-skin.mjs",
         appExecutableExistsImpl: async () => true,
         ensureDaemonImpl: async () => ({ pid: 88 }),
         findAvailableCdpPortImpl: async () => 9230,
@@ -138,7 +138,7 @@ test("startConfiguredBackground moves an automatic port away from a collision", 
 })
 
 test("syncConfiguredBackground rejects an unrelated service on the configured port", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-background-service-"))
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
   try {
     const image = path.join(directory, "wallpaper.png")
     await writeFile(image, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
