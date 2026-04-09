@@ -1,7 +1,7 @@
 {
-  "name": "@anys/codex-background",
+  "name": "codex-skin",
   "version": "0.2.0",
-  "description": "A visual background companion for the Codex desktop app.",
+  "description": "An unofficial local appearance companion for the Codex desktop app.",
   "keywords": [
     "codex",
     "desktop",
@@ -11,7 +11,7 @@
   "license": "MIT",
   "author": "anys",
   "bin": {
-    "codex-background": "./dist/bin/codex-background.js"
+    "codex-skin": "./dist/bin/codex-skin.js"
   },
   "files": [
     "dist"
@@ -22,10 +22,10 @@
   },
   "scripts": {
     "dev": "bun scripts/dev.ts",
-    "dev:server": "bun ./bin/codex-background.ts dev-server",
+    "dev:server": "bun ./bin/codex-skin.ts dev-server",
     "dev:ui": "vp dev --host 127.0.0.1",
     "build": "bun run build:ui && bun run build:runtime",
-    "build:runtime": "rm -rf dist/bin && bun build ./bin/codex-background.ts --target=node --format=esm --outdir=dist/bin",
+    "build:runtime": "rm -rf dist/bin && bun build ./bin/codex-skin.ts --target=node --format=esm --outdir=dist/bin",
     "build:ui": "vp build",
     "check": "vp check",
     "format": "vp fmt . --write",

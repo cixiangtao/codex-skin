@@ -49,15 +49,15 @@ const BOOLEAN_OPTIONS = new Set(["--auto-port", "--enable", "--disable", "--relo
 const DEVELOPMENT_API_PORT = 4179
 const DEVELOPMENT_UI_URL = "http://127.0.0.1:4178/"
 
-const HELP = `Codex Background
+const HELP = `Codex Skin
 
 Usage:
-  codex-background                       Open settings and start background mode
-  codex-background settings              Open the visual settings page
-  codex-background configure [options]   Update settings from the terminal
-  codex-background doctor                Check the local runtime
-  codex-background verify [--reload]     Verify the visible background
-  codex-background stop                  Remove the background
+  codex-skin                       Open settings and start background mode
+  codex-skin settings              Open the visual settings page
+  codex-skin configure [options]   Update settings from the terminal
+  codex-skin doctor                Check the local runtime
+  codex-skin verify [--reload]     Verify the visible background
+  codex-skin stop                  Remove the background
 
 Options:
   --image PATH                 PNG, JPEG, WebP, GIF, or AVIF up to 25 MB
@@ -132,7 +132,7 @@ async function runDevelopmentServer(entryPath: string, io: CommandIo) {
     entryPath,
     idleTimeoutMs: 24 * 60 * 60 * 1000,
     port: DEVELOPMENT_API_PORT,
-    token: process.env.CODEX_BACKGROUND_DEV_TOKEN,
+    token: process.env.CODEX_SKIN_DEV_TOKEN,
   })
   io.log(`Development API: http://127.0.0.1:${DEVELOPMENT_API_PORT}/`)
   io.log(`Authenticate the Vite UI: ${instance.url}`)
@@ -273,7 +273,7 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
     case "enable": {
       const config = await readConfig()
       await writeConfig({ ...config, enabled: true })
-      io.log("Codex Background enabled.")
+      io.log("Codex Skin enabled.")
       return 0
     }
     case "disable": {
@@ -283,7 +283,7 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
       if ((await configuredCdpIsReady(config)).httpReady) {
         await removeFromAllTargets({ port: config.port })
       }
-      io.log("Codex Background disabled. Codex itself was left running.")
+      io.log("Codex Skin disabled. Codex itself was left running.")
       return 0
     }
     case "daemon":

@@ -258,7 +258,7 @@ export function createSettingsHttpServer(options: SettingsOptions) {
     }
 
     if (!requestIsAuthenticated(request, token)) {
-      sendJson(response, 403, { error: "Open the settings page from codex-background settings." })
+      sendJson(response, 403, { error: "Open the settings page from codex-skin settings." })
       return
     }
 

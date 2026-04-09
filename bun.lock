@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@anys/codex-background",
+      "name": "codex-skin",
       "devDependencies": {
         "@tailwindcss/vite": "^4.3.2",
         "@types/node": "^26.1.1",

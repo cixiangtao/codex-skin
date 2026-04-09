@@ -19,7 +19,7 @@ async function waitForServer(url: string) {
 }
 
 const token = randomBytes(24).toString("hex")
-const environment = { ...process.env, CODEX_BACKGROUND_DEV_TOKEN: token }
+const environment = { ...process.env, CODEX_SKIN_DEV_TOKEN: token }
 const children = ["dev:ui", "dev:server"].map((script) => ({
   process: spawn(process.execPath, ["run", script], { env: environment, stdio: "inherit" }),
   script,

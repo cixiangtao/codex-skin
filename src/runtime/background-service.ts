@@ -138,7 +138,7 @@ export async function startConfiguredBackground(
   config: BackgroundConfig,
   options: ServiceOptions = {},
 ): Promise<BackgroundApplication> {
-  if (!config.enabled) throw new BackgroundStateError("DISABLED", "Codex Background is disabled.")
+  if (!config.enabled) throw new BackgroundStateError("DISABLED", "Codex Skin is disabled.")
   if (!config.image) {
     throw new BackgroundStateError("IMAGE_MISSING", "No background image is configured.")
   }
