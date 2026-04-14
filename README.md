@@ -1,6 +1,6 @@
-# Codex Background
+# Codex Skin
 
-A local companion that places transparent character art inside the Codex desktop workspace without modifying or re-signing `ChatGPT.app`.
+An unofficial local appearance companion that places transparent character art inside the Codex desktop workspace without modifying or re-signing `ChatGPT.app`.
 
 ## Run
 
@@ -13,7 +13,7 @@ Requirements:
 Once published, the complete user flow is one command:
 
 ```bash
-npx @anys/codex-background
+npx codex-skin
 ```
 
 The command opens the light visual settings page, starts Codex with a loopback-only Chrome DevTools Protocol port, injects the configured character layer, and keeps new windows synchronized. The background daemon exits when Codex exits.
@@ -30,27 +30,27 @@ The local settings page supports:
 - character size, opacity, and edge blur
 - immediate application to connected Codex windows
 
-Settings and uploaded images remain in `~/.config/codex-background/`. The settings server binds only to `127.0.0.1`, uses a random session token, and shuts down after 30 minutes without a request.
+Settings and uploaded images remain in `~/.config/codex-skin/`. Set `CODEX_SKIN_HOME` to use a different location. The legacy `CODEX_BACKGROUND_HOME` override remains accepted for existing local setups. The settings server binds only to `127.0.0.1`, uses a random session token, and shuts down after 30 minutes without a request.
 
 The default CDP port is managed automatically: if another process owns it, the launcher selects and saves a free loopback port. Passing `configure --port PORT` makes that port fixed; use `configure --auto-port` to return to automatic selection. A responding port is accepted only when every listener belongs to the configured Codex process tree.
 
 ## Commands
 
 ```bash
-npx @anys/codex-background                # open settings and start background mode
-npx @anys/codex-background settings       # open settings only
-npx @anys/codex-background doctor         # inspect the local runtime
-npx @anys/codex-background verify         # verify that the background is visibly applied
-npx @anys/codex-background verify --reload # verify reload recovery
-npx @anys/codex-background show           # print normalized configuration
-npx @anys/codex-background stop           # remove the injected layer
-npx @anys/codex-background disable        # stop and persist the disabled state
+npx codex-skin                 # open settings and start background mode
+npx codex-skin settings        # open settings only
+npx codex-skin doctor          # inspect the local runtime
+npx codex-skin verify          # verify that the background is visibly applied
+npx codex-skin verify --reload # verify reload recovery
+npx codex-skin show            # print normalized configuration
+npx codex-skin stop            # remove the injected layer
+npx codex-skin disable         # stop and persist the disabled state
 ```
 
 Terminal-based appearance changes remain available for automation:
 
 ```bash
-npx @anys/codex-background configure \
+npx codex-skin configure \
   --image "/absolute/path/to/character.png" \
   --illustration-size 360 \
   --x 82 \
