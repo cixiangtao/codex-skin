@@ -1,4 +1,5 @@
 import tailwindcss from "@tailwindcss/vite"
+import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite-plus"
 import type { PluginOption, UserConfig } from "vite-plus"
 
@@ -37,7 +38,7 @@ const config = {
   staged: {
     "*": "vp check --fix",
   },
-  plugins: [tailwindcss() as unknown as PluginOption],
+  plugins: [react() as unknown as PluginOption, tailwindcss() as unknown as PluginOption],
   build: {
     emptyOutDir: true,
     outDir: "dist/ui",
