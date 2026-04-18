@@ -14,6 +14,8 @@
   color-scheme: light;
   --illustration-x: 82%;
   --illustration-y: 76%;
+  --illustration-translate-x: -82%;
+  --illustration-translate-y: -76%;
   --illustration-preview-size: 30%;
   --illustration-blur: 0px;
   --illustration-opacity: 1;
@@ -177,22 +179,80 @@ label:has(input:focus-visible) {
 }
 
 .mock-window {
+  --mock-active-line: rgb(240 168 59 / 0.4);
+  --mock-composer-background: rgb(46 55 50 / 0.92);
+  --mock-composer-border: rgb(255 255 255 / 0.1);
+  --mock-divider: rgb(255 255 255 / 0.07);
+  --mock-grid-line: rgb(255 255 255 / 0.18);
+  --mock-line: rgb(255 255 255 / 0.1);
+  --mock-main-background: #252c28;
+  --mock-muted: rgb(232 236 233 / 0.48);
+  --mock-sidebar-background: #171c19;
+  --mock-text: #e8ece9;
+
   position: absolute;
   inset: 7%;
   display: grid;
   grid-template-columns: 25% 1fr;
   overflow: hidden;
-  color: #e8ece9;
-  background: #1f2522;
+  color: var(--mock-text);
+  background: var(--mock-main-background);
   border: 1px solid rgb(24 37 31 / 0.12);
   border-radius: clamp(10px, 1.2vw, 17px);
   box-shadow: 0 28px 55px rgb(24 37 31 / 0.2);
 }
 
+.mock-window[data-theme="light"] {
+  --mock-active-line: rgb(217 143 31 / 0.34);
+  --mock-composer-background: rgb(255 255 255 / 0.92);
+  --mock-composer-border: rgb(24 37 31 / 0.12);
+  --mock-divider: rgb(24 37 31 / 0.09);
+  --mock-grid-line: rgb(24 37 31 / 0.13);
+  --mock-line: rgb(24 37 31 / 0.1);
+  --mock-main-background: #f6f6f2;
+  --mock-muted: rgb(24 37 31 / 0.5);
+  --mock-sidebar-background: #ecece7;
+  --mock-text: #26312c;
+}
+
+.preview-theme-switcher {
+  position: absolute;
+  top: calc(7% + 10px);
+  right: calc(7% + 10px);
+  z-index: 7;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: rgb(255 253 247 / 0.9);
+  border: 1px solid rgb(24 37 31 / 0.13);
+  border-radius: 999px;
+  box-shadow: 0 7px 20px rgb(24 37 31 / 0.13);
+  backdrop-filter: blur(12px);
+}
+
+.preview-theme-switcher button {
+  padding: 4px 8px;
+  color: rgb(24 37 31 / 0.48);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  transition: 150ms ease;
+}
+
+.preview-theme-switcher button:hover,
+.preview-theme-switcher button.is-active {
+  color: var(--color-paper);
+  background: var(--color-leaf);
+}
+
 .mock-sidebar {
   padding: 15px clamp(10px, 1.7vw, 24px);
-  background: #171c19;
-  border-right: 1px solid rgb(255 255 255 / 0.07);
+  background: var(--mock-sidebar-background);
+  border-right: 1px solid var(--mock-divider);
 }
 
 .mock-traffic {
@@ -203,7 +263,7 @@ label:has(input:focus-visible) {
 .mock-traffic i {
   width: 6px;
   height: 6px;
-  background: rgb(255 255 255 / 0.24);
+  background: var(--mock-muted);
   border-radius: 50%;
 }
 .mock-new {
@@ -215,7 +275,7 @@ label:has(input:focus-visible) {
 }
 .mock-sidebar p {
   margin: clamp(17px, 2.4vw, 30px) 0 8px;
-  color: rgb(255 255 255 / 0.32);
+  color: var(--mock-muted);
   font-size: 6px;
   letter-spacing: 0.13em;
 }
@@ -223,11 +283,11 @@ label:has(input:focus-visible) {
   display: block;
   height: 5px;
   margin: 10px 0;
-  background: rgb(255 255 255 / 0.1);
+  background: var(--mock-line);
   border-radius: 20px;
 }
 .mock-line.is-active {
-  background: rgb(240 168 59 / 0.4);
+  background: var(--mock-active-line);
 }
 
 .mock-main {
@@ -237,7 +297,7 @@ label:has(input:focus-visible) {
   justify-content: center;
   padding: clamp(20px, 3.2vw, 52px);
   overflow: hidden;
-  background: #252c28;
+  background: var(--mock-main-background);
 }
 
 .stage-grid {
@@ -246,8 +306,8 @@ label:has(input:focus-visible) {
   pointer-events: none;
   opacity: 0.12;
   background-image:
-    linear-gradient(rgb(255 255 255 / 0.18) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 0.18) 1px, transparent 1px);
+    linear-gradient(var(--mock-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--mock-grid-line) 1px, transparent 1px);
   background-size: 25% 25%;
 }
 
@@ -260,20 +320,23 @@ label:has(input:focus-visible) {
   max-width: 80%;
   cursor: grab;
   touch-action: none;
-  aspect-ratio: 1;
-  background-image: var(--preview-image);
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
   filter: blur(var(--illustration-blur)) drop-shadow(0 14px 20px rgb(0 0 0 / 0.22));
   opacity: var(--illustration-opacity);
-  translate: -50% -50%;
+  translate: var(--illustration-translate-x) var(--illustration-translate-y);
   transition:
     width 140ms ease,
     top 140ms ease,
     left 140ms ease,
     filter 140ms ease,
     opacity 140ms ease;
+}
+
+.illustration img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
 }
 
 .illustration:hover {
@@ -316,7 +379,7 @@ label:has(input:focus-visible) {
 .mock-header span,
 .mock-header i {
   height: 5px;
-  background: rgb(255 255 255 / 0.1);
+  background: var(--mock-line);
   border-radius: 20px;
 }
 .mock-header span {
@@ -347,7 +410,7 @@ label:has(input:focus-visible) {
 }
 .mock-copy p {
   margin: 0;
-  color: rgb(232 236 233 / 0.48);
+  color: var(--mock-muted);
   font-size: clamp(6px, 0.7vw, 10px);
 }
 .mock-composer {
@@ -360,9 +423,9 @@ label:has(input:focus-visible) {
   align-items: center;
   justify-content: space-between;
   padding: clamp(8px, 1.2vw, 15px);
-  color: rgb(255 255 255 / 0.32);
-  background: rgb(46 55 50 / 0.92);
-  border: 1px solid rgb(255 255 255 / 0.1);
+  color: var(--mock-muted);
+  background: var(--mock-composer-background);
+  border: 1px solid var(--mock-composer-border);
   border-radius: 10px;
   font-size: clamp(6px, 0.7vw, 9px);
 }
