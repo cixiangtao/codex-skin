@@ -122,3 +122,40 @@ test("settings server saves controls and accepts a local image upload", async ()
     await rm(dataDirectory, { recursive: true, force: true })
   }
 })
+
+test("settings server restarts Codex only after explicit confirmation", async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-"))
+  const image = path.join(dataDirectory, "wallpaper.jpg")
+  await writeFile(image, Buffer.from([0xff, 0xd8, 0xff]))
+  await writeConfig({ image }, { dataDirectory })
+  const restartChoices: boolean[] = []
+  const instance = await listenSettingsServer({
+    dataDirectory,
+    entryPath: "/tmp/codex-skin.ts",
+    token: "test-token",
+    isCdpAvailableImpl: async () => false,
+    startConfiguredBackgroundImpl: async (_config, options) => {
+      restartChoices.push(options.restartRunningCodex === true)
+      return { applied: true, mode: "started", targets: 1 }
+    },
+  })
+  try {
+    const { cookie, origin } = await authenticatedSession(instance.url)
+    const firstResponse = await fetch(`${origin}/api/start`, {
+      method: "POST",
+      headers: { cookie },
+    })
+    assert.equal(firstResponse.status, 200)
+
+    const confirmedResponse = await fetch(`${origin}/api/start`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ restartRunningCodex: true }),
+    })
+    assert.equal(confirmedResponse.status, 200)
+    assert.deepEqual(restartChoices, [false, true])
+  } finally {
+    await new Promise<void>((resolve) => instance.server.close(() => resolve()))
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})

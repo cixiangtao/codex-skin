@@ -11,7 +11,7 @@ import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
 import { readDaemonPid, runDaemon, stopDaemon } from "./daemon.ts"
 import { removeFromAllTargets, verifyAllTargets } from "./injector.ts"
 import type { TargetVerification } from "./injector.ts"
-import { appExecutableExists } from "./macos.ts"
+import { appExecutableExists, confirmCodexRestart, isCodexRunning } from "./macos.ts"
 import {
   ensureSettingsServer,
   listenSettingsServer,
@@ -27,6 +27,7 @@ interface CommandIo {
 }
 
 interface CliOptions {
+  confirmCodexRestartImpl?: () => Promise<boolean>
   entryPath?: string
   io?: CommandIo
 }
@@ -143,17 +144,32 @@ async function runDevelopmentServer(entryPath: string, io: CommandIo) {
   await new Promise<void>((resolve) => instance.server.once("close", resolve))
 }
 
-async function launch(entryPath: string, io: CommandIo) {
-  await openSettings(entryPath, io)
+async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
   const config = await readConfig()
   if (!config.image) {
+    await openSettings(entryPath, io)
     io.log("Choose a character image in the settings page to continue.")
-    return
+    return 0
   }
-  const result = await startConfiguredBackground(config, { entryPath })
+
+  let restartRunningCodex = false
+  if (await isCodexRunning(config.appPath)) {
+    const { httpReady, inspection } = await configuredCdpIsReady(config)
+    if (!httpReady && inspection.state !== "occupied") {
+      restartRunningCodex = await (options.confirmCodexRestartImpl || confirmCodexRestart)()
+      if (!restartRunningCodex) {
+        io.log("Codex Skin did not start. Quit Codex completely, then run codex-skin again.")
+        return 0
+      }
+    }
+  }
+
+  await openSettings(entryPath, io)
+  const result = await startConfiguredBackground(config, { entryPath, restartRunningCodex })
   io.log(
     `Applied the background to ${result.targets ?? 0} Codex window${result.targets === 1 ? "" : "s"}.`,
   )
+  return 0
 }
 
 async function requireConfiguredCdp(config: BackgroundConfig) {
@@ -213,8 +229,7 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
   const { command, options: commandOptions } = parseArguments(argv)
   switch (command) {
     case "launch":
-      await launch(entryPath, io)
-      return 0
+      return await launch(entryPath, io, options)
     case "help":
     case "--help":
     case "-h":

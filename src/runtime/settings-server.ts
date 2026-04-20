@@ -59,6 +59,7 @@ interface SettingsOptions extends DataDirectoryOptions {
   isCdpAvailableImpl?: (options: { port: number }) => Promise<boolean>
   port?: number
   spawnImpl?: SpawnImplementation
+  startConfiguredBackgroundImpl?: typeof startConfiguredBackground
   token?: string
   uiRoot?: string
 }
@@ -302,8 +303,16 @@ export function createSettingsHttpServer(options: SettingsOptions) {
       }
 
       if (request.method === "POST" && url.pathname === "/api/start") {
+        const input = await readJsonBody(request)
+        const restartRunningCodex =
+          typeof input === "object" &&
+          input !== null &&
+          "restartRunningCodex" in input &&
+          input.restartRunningCodex === true
         const config = await readConfig({ dataDirectory })
-        const application = await startConfiguredBackground(config, runtimeOptions)
+        const application = await (
+          options.startConfiguredBackgroundImpl || startConfiguredBackground
+        )(config, { ...runtimeOptions, restartRunningCodex })
         const activeConfig = await readConfig({ dataDirectory })
         sendJson(response, 200, {
           ...(await statePayload(activeConfig, runtimeOptions)),

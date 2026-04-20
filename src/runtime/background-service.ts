@@ -11,7 +11,9 @@ import {
   inspectCdpPort,
   isCodexRunning,
   launchCodex,
+  quitCodex,
   resolveAppExecutable,
+  waitForCodexExit,
 } from "./macos.ts"
 import type { CdpPortInspection } from "./macos.ts"
 import type { BackgroundApplication, BackgroundConfig, InjectionResult } from "./types.ts"
@@ -29,9 +31,12 @@ interface ServiceOptions {
   isCodexRunningImpl?: (appPath: string) => Promise<boolean>
   inspectCdpPortImpl?: (appPath: string, port: number) => Promise<CdpPortInspection>
   launchCodexImpl?: (options: { appPath: string; port: number }) => number | undefined
+  quitCodexImpl?: () => Promise<void>
   removeFromAllTargetsImpl?: (options: { port: number }) => Promise<number>
+  restartRunningCodex?: boolean
   stopDaemonImpl?: () => Promise<number | null>
   timeoutMs?: number
+  waitForCodexExitImpl?: (appPath: string) => Promise<boolean>
   writeConfigImpl?: (config: BackgroundConfig) => Promise<BackgroundConfig>
 }
 
@@ -150,7 +155,7 @@ export async function startConfiguredBackground(
     )
   }
 
-  const running = await (options.isCodexRunningImpl || isCodexRunning)(config.appPath)
+  let running = await (options.isCodexRunningImpl || isCodexRunning)(config.appPath)
   let activeConfig = config
   let { httpReady, inspection } = await configuredCdpIsReady(activeConfig, options)
   if (inspection.state === "occupied") {
@@ -176,10 +181,21 @@ export async function startConfiguredBackground(
     httpReady = selected.httpReady
   }
   if (running && !httpReady) {
-    throw new BackgroundStateError(
-      "RESTART_REQUIRED",
-      "Codex is running without background support. Quit Codex normally, keep this page open, then try again.",
-    )
+    if (!options.restartRunningCodex) {
+      throw new BackgroundStateError(
+        "RESTART_REQUIRED",
+        "Codex is running without background support. Quit Codex normally, keep this page open, then try again.",
+      )
+    }
+    await (options.stopDaemonImpl || stopDaemon)()
+    await (options.quitCodexImpl || quitCodex)()
+    if (!(await (options.waitForCodexExitImpl || waitForCodexExit)(config.appPath))) {
+      throw new BackgroundStateError(
+        "QUIT_TIMEOUT",
+        "Codex did not quit in time. Quit Codex completely, then try again.",
+      )
+    }
+    running = false
   }
   if (!running) {
     ;(options.launchCodexImpl || launchCodex)({
