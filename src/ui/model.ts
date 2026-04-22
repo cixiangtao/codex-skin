@@ -51,6 +51,35 @@ export async function api<ResponsePayload>(requestPath: string, options: Request
   return payload
 }
 
+export function apiErrorCode(error: unknown) {
+  return error instanceof Error && "code" in error ? String(error.code) : undefined
+}
+
+const apiErrorMessages: Readonly<Record<string, string>> = {
+  APP_MISSING: "未找到 Codex 应用，请确认它已安装在“应用程序”文件夹中。",
+  BAD_REQUEST: "请求内容无效，请检查后重试。",
+  BODY_TOO_LARGE: "上传内容过大，图片不能超过 25 MB。",
+  CDP_TIMEOUT: "Codex 已启动，但背景连接未能建立，请重试。",
+  DISABLED: "请先启用人物背景。",
+  IMAGE_MISSING: "请先选择一张人物图片。",
+  NO_TARGETS: "没有找到可应用背景的 Codex 窗口，请打开 Codex 后重试。",
+  PORT_IN_USE: "背景连接端口正被其他程序占用，请重试。",
+  QUIT_TIMEOUT: "Codex 未能及时退出，请完全退出后重试。",
+  RESTART_REQUIRED: "Codex 需要重启后才能启用人物背景。",
+}
+
+/** Converts API and browser failures into concise user-facing Chinese copy. */
+export function describeError(error: unknown) {
+  const code = apiErrorCode(error)
+  if (code && apiErrorMessages[code]) return apiErrorMessages[code]
+  if (error instanceof Error && "status" in error) {
+    if (error.status === 403) return "设置会话已失效，请通过 Codex Skin 重新打开此页面。"
+    if (error.status === 404) return "请求的设置功能不存在，请重新打开页面后再试。"
+  }
+  if (error instanceof TypeError) return "无法连接本地设置服务，请重新打开 Codex Skin。"
+  return error instanceof Error ? error.message : String(error)
+}
+
 export function describeApplication(application?: BackgroundApplication) {
   if (!application) return "人物布景已保存。"
   if (application.mode === "injected") {

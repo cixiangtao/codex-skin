@@ -26,7 +26,7 @@ export interface StatePayload {
   status: BackgroundStatus
 }
 
-export type BusyAction = "save" | "start" | null
+export type BusyAction = "save" | "start" | "toggle" | null
 export type PreviewTheme = "system" | "light" | "dark"
 export type RangeKey =
   | "illustrationSize"

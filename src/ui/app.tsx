@@ -6,9 +6,11 @@ import { PreviewSection } from "./components/preview-section.tsx"
 import {
   acceptedImageTypes,
   api,
+  apiErrorCode,
   connectionDetails,
   defaultConfig,
   describeApplication,
+  describeError,
   imageAdvice,
 } from "./model.ts"
 import type {
@@ -30,11 +32,12 @@ export function App() {
   )
   const [imageSource, setImageSource] = useState<string>()
   const [imageLabel, setImageLabel] = useState("尚未选择图片")
-  const [actionNote, setActionNote] = useState("配置只保存在这台 Mac 上。")
+  const [actionNote, setActionNote] = useState("")
   const [busyAction, setBusyAction] = useState<BusyAction>(null)
   const [toast, setToast] = useState<{ error: boolean; message: string }>()
   const [fileDragging, setFileDragging] = useState(false)
   const [illustrationDragging, setIllustrationDragging] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
   const placementStageRef = useRef<HTMLDivElement>(null)
   const toastTimerRef = useRef<number | undefined>(undefined)
   const dragDepthRef = useRef(0)
@@ -71,7 +74,7 @@ export function App() {
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return
         setConnectionFailed(true)
-        notify(error instanceof Error ? error.message : String(error), true)
+        notify(describeError(error), true)
       }
     }
     void loadState()
@@ -129,7 +132,6 @@ export function App() {
     setBusyAction("save")
     try {
       const {
-        enabled,
         illustrationBlur,
         illustrationOpacity,
         illustrationSize,
@@ -139,7 +141,6 @@ export function App() {
       const payload = await api<StatePayload>("/api/config", {
         method: "PUT",
         body: JSON.stringify({
-          enabled,
           illustrationBlur,
           illustrationOpacity,
           illustrationSize,
@@ -152,7 +153,30 @@ export function App() {
       setActionNote(message)
       notify(message)
     } catch (error) {
-      notify(error instanceof Error ? error.message : String(error), true)
+      notify(describeError(error), true)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  const applyEnabled = async (enabled: boolean) => {
+    const previousEnabled = config.enabled
+    setConfig((current) => ({ ...current, enabled }))
+    setBusyAction("toggle")
+    try {
+      const payload = await api<StatePayload>("/api/config", {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
+      })
+      setConfig((current) => ({ ...current, enabled: payload.config.enabled }))
+      setStatus(payload.status)
+      setConnectionFailed(false)
+      const message = describeApplication(payload.application)
+      setActionNote(message)
+      notify(message)
+    } catch (error) {
+      setConfig((current) => ({ ...current, enabled: previousEnabled }))
+      notify(describeError(error), true)
     } finally {
       setBusyAction(null)
     }
@@ -161,13 +185,30 @@ export function App() {
   const startBackground = async () => {
     setBusyAction("start")
     try {
-      const payload = await api<StatePayload>("/api/start", { method: "POST" })
+      const start = (restartRunningCodex = false) =>
+        api<StatePayload>("/api/start", {
+          method: "POST",
+          body: restartRunningCodex ? JSON.stringify({ restartRunningCodex: true }) : undefined,
+        })
+      let payload: StatePayload
+      try {
+        payload = await start()
+      } catch (error) {
+        if (apiErrorCode(error) !== "RESTART_REQUIRED") throw error
+        const confirmed = window.confirm(
+          "Codex 正在运行，但未启用人物背景连接。是否立即重启 Codex 并启动背景模式？",
+        )
+        if (!confirmed) {
+          throw new Error("Codex Skin 已停止启动。请先完全退出 Codex，再重新运行。")
+        }
+        payload = await start(true)
+      }
       applyState(payload)
       const message = describeApplication(payload.application)
       setActionNote(message)
       notify(message)
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = describeError(error)
       setActionNote(message)
       notify(message, true)
     } finally {
@@ -177,6 +218,10 @@ export function App() {
 
   const uploadImage = async (file?: File) => {
     if (!file) return
+    if (file.size === 0) {
+      notify("所选图片为空，请重新选择。", true)
+      return
+    }
     if (!acceptedImageTypes.has(file.type)) {
       notify("请选择 PNG、JPEG、WebP、GIF 或 AVIF 图片。", true)
       return
@@ -205,7 +250,7 @@ export function App() {
     } catch (error) {
       setImageSource(previousImageSource)
       setImageLabel(previousImageLabel)
-      notify(error instanceof Error ? error.message : String(error), true)
+      notify(describeError(error), true)
     } finally {
       URL.revokeObjectURL(temporaryUrl)
     }
@@ -217,6 +262,8 @@ export function App() {
       input.value = ""
     })
   }
+
+  const chooseImage = () => imageInputRef.current?.click()
 
   const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -245,8 +292,8 @@ export function App() {
 
   return (
     <>
-      <main className="mx-auto min-h-screen w-full max-w-[1680px] px-5 py-5 sm:px-8 lg:px-12 lg:py-8">
-        <header className="flex items-center justify-between border-b border-ink/12 pb-5">
+      <main className="app-shell mx-auto w-full max-w-[1520px] px-5 py-5 sm:px-8 lg:px-12 lg:py-7">
+        <header className="flex items-center justify-between border-b border-ink/12 pb-4">
           <a
             className="group flex items-center gap-3 text-inherit no-underline"
             href="/"
@@ -255,14 +302,7 @@ export function App() {
             <span className="logo-mark" aria-hidden="true">
               <i />
             </span>
-            <span>
-              <strong className="block text-[11px] font-semibold tracking-[0.22em]">
-                CODEX BACKGROUND
-              </strong>
-              <small className="mt-1 block text-[9px] tracking-[0.18em] text-ink/45">
-                CHARACTER ATELIER
-              </small>
-            </span>
+            <strong className="text-[11px] font-semibold tracking-[0.2em]">CODEX SKIN</strong>
           </a>
           <div className="connection" data-state={connection.state}>
             <i aria-hidden="true" />
@@ -270,20 +310,18 @@ export function App() {
           </div>
         </header>
 
-        <div className="grid gap-8 py-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12 xl:gap-20 xl:py-12">
+        <div className="workspace-layout grid gap-8 py-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10 xl:gap-14 xl:py-9">
           <PreviewSection
-            advice={advice}
             config={config}
             effectiveTheme={effectiveTheme}
             fileDragging={fileDragging}
             illustrationDragging={illustrationDragging}
-            imageLabel={imageLabel}
             imageSource={imageSource}
+            onChooseImage={chooseImage}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onFinishIllustrationDrag={finishIllustrationDrag}
-            onImageChange={handleImageChange}
             onMoveIllustration={moveIllustration}
             onPreviewThemeChange={setPreviewTheme}
             onStartIllustrationDrag={startIllustrationDrag}
@@ -292,21 +330,31 @@ export function App() {
           />
           <ControlPanel
             actionNote={actionNote}
+            advice={advice}
             busyAction={busyAction}
             config={config}
+            imageLabel={imageLabel}
+            imageSource={imageSource}
+            onChooseImage={chooseImage}
             onConfigChange={updateConfig}
+            onEnabledChange={applyEnabled}
             onPositionChange={updatePosition}
             onSave={saveSettings}
             onStart={startBackground}
             status={status}
           />
         </div>
-
-        <footer className="flex items-center justify-between border-t border-ink/10 pt-5 text-[9px] tracking-[0.16em] text-ink/38">
-          <span>LOCAL ONLY · 127.0.0.1</span>
-          <span>TRANSPARENT PNG / WEBP WORKS BEST</span>
-        </footer>
       </main>
+
+      <input
+        ref={imageInputRef}
+        className="visually-hidden-input"
+        name="characterImage"
+        type="file"
+        tabIndex={-1}
+        accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+        onChange={handleImageChange}
+      />
 
       <div
         className={`toast${toast ? " is-visible" : ""}${toast?.error ? " is-error" : ""}`}
