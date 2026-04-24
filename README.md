@@ -61,7 +61,7 @@ npx codex-skin configure \
 
 ## Important lifecycle detail
 
-The CDP flag must be present when Codex starts. If Codex is already running in normal mode, the tool will ask you to quit it normally instead of killing or silently relaunching it. Start subsequent sessions with the `npx` command so the background connection is available from launch.
+The CDP flag must be present when Codex starts. If Codex is already running in normal mode, the tool asks whether it may restart Codex. Confirming performs a normal application quit, waits for Codex to exit, then relaunches it with the loopback-only CDP connection and starts background mode. Declining exits Codex Skin and leaves Codex untouched. Start subsequent sessions with the `npx` command so the background connection is available from launch.
 
 The helper never changes `app.asar`, `ElectronAsarIntegrity`, the app signature, login data, or the updater. CDP has no application-level authentication, so it remains bound to loopback and should not be exposed to the network.
 
