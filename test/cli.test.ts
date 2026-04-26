@@ -54,6 +54,27 @@ test("parseArguments accepts automatic port selection", () => {
   })
 })
 
+test("parseArguments targets independent sidebar settings", () => {
+  assert.deepEqual(
+    parseArguments([
+      "configure",
+      "--surface",
+      "sidebar",
+      "--image",
+      "/tmp/sidebar.png",
+      "--enable-surface",
+    ]),
+    {
+      command: "configure",
+      options: {
+        surface: "sidebar",
+        image: "/tmp/sidebar.png",
+        surfaceEnabled: true,
+      },
+    },
+  )
+})
+
 test("verificationChecks explains each visible failure", () => {
   assert.deepEqual(
     verificationChecks({

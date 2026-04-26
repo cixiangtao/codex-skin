@@ -7,6 +7,7 @@ import { test } from "vitest"
 
 import {
   BackgroundStateError,
+  backgroundStatus,
   startConfiguredBackground,
   syncConfiguredBackground,
 } from "../src/runtime/background-service.ts"
@@ -30,6 +31,33 @@ test("syncConfiguredBackground removes injected styling when disabled", async ()
   assert.deepEqual(result, { applied: true, mode: "removed", pid: 42, targets: 2 })
 })
 
+test("syncConfiguredBackground removes styling when every surface is disabled", async () => {
+  const calls: string[] = []
+  const result = await syncConfiguredBackground(
+    normalizeConfig({
+      enabled: true,
+      surfaces: {
+        main: { enabled: false, image: "/tmp/main.png" },
+        sidebar: { enabled: false, image: "/tmp/sidebar.png" },
+      },
+    }),
+    {
+      isCdpAvailableImpl: async () => true,
+      stopDaemonImpl: async () => {
+        calls.push("stop")
+        return 42
+      },
+      removeFromAllTargetsImpl: async () => {
+        calls.push("remove")
+        return 2
+      },
+    },
+  )
+
+  assert.deepEqual(calls, ["stop", "remove"])
+  assert.deepEqual(result, { applied: true, mode: "removed", pid: 42, targets: 2 })
+})
+
 test("syncConfiguredBackground applies valid settings and keeps the daemon alive", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
   try {
@@ -46,6 +74,29 @@ test("syncConfiguredBackground applies valid settings and keeps the daemon alive
     assert.equal(result.mode, "injected")
     assert.equal(result.targets, 2)
     assert.deepEqual(result.daemon, { pid: 9, entryPath: "/tmp/codex-skin.mjs" })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test("backgroundStatus reports image readability per surface", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
+  try {
+    const sidebarImage = path.join(directory, "sidebar.png")
+    await writeFile(sidebarImage, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const status = await backgroundStatus(
+      normalizeConfig({
+        surfaces: {
+          main: { enabled: false, image: null },
+          sidebar: { enabled: true, image: sidebarImage },
+        },
+      }),
+      { isCdpAvailableImpl: async () => false },
+    )
+
+    assert.equal(status.imageReadable, true)
+    assert.equal(status.surfaces.main.imageReadable, false)
+    assert.equal(status.surfaces.sidebar.imageReadable, true)
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

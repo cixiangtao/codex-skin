@@ -43,11 +43,11 @@ test("normalizeConfig clamps unsafe numeric values", () => {
     pollIntervalMs: 100,
   })
 
-  assert.equal(config.illustrationSize, 1200)
-  assert.equal(config.illustrationX, 0)
-  assert.equal(config.illustrationY, 100)
-  assert.equal(config.illustrationBlur, 30)
-  assert.equal(config.illustrationOpacity, 0)
+  assert.equal(config.surfaces.main.illustrationSize, 1200)
+  assert.equal(config.surfaces.main.illustrationX, 0)
+  assert.equal(config.surfaces.main.illustrationY, 100)
+  assert.equal(config.surfaces.main.illustrationBlur, 30)
+  assert.equal(config.surfaces.main.illustrationOpacity, 0)
   assert.equal(config.port, DEFAULT_CONFIG.port)
   assert.equal(config.portMode, "auto")
   assert.equal(config.pollIntervalMs, 500)
@@ -70,15 +70,62 @@ test("writeConfig persists normalized JSON atomically", async () => {
     const raw = JSON.parse(await readFile(path.join(dataDirectory, "config.json"), "utf8"))
 
     assert.deepEqual(loaded, written)
-    assert.equal(raw.illustrationSize, 420)
-    assert.equal(raw.illustrationX, 74)
-    assert.equal(raw.illustrationBlur, 6)
-    assert.equal(raw.illustrationOpacity, 0.65)
-    assert.equal(raw.version, 3)
+    assert.equal(raw.surfaces.main.illustrationSize, 420)
+    assert.equal(raw.surfaces.main.illustrationX, 74)
+    assert.equal(raw.surfaces.main.illustrationBlur, 6)
+    assert.equal(raw.surfaces.main.illustrationOpacity, 0.65)
+    assert.equal(raw.surfaces.sidebar.enabled, false)
+    assert.equal(raw.version, 4)
     assert.equal(raw.portMode, "auto")
   } finally {
     await rm(dataDirectory, { recursive: true, force: true })
   }
+})
+
+test("normalizeConfig preserves independent surface settings", () => {
+  const config = normalizeConfig({
+    version: 4,
+    surfaces: {
+      main: {
+        enabled: true,
+        image: "/tmp/main.png",
+        illustrationSize: 520,
+        illustrationX: 70,
+      },
+      sidebar: {
+        enabled: true,
+        image: "/tmp/sidebar.webp",
+        illustrationSize: 220,
+        illustrationOpacity: 0.18,
+      },
+    },
+  })
+
+  assert.equal(config.surfaces.main.image, "/tmp/main.png")
+  assert.equal(config.surfaces.main.illustrationSize, 520)
+  assert.equal(config.surfaces.main.illustrationX, 70)
+  assert.equal(config.surfaces.sidebar.image, "/tmp/sidebar.webp")
+  assert.equal(config.surfaces.sidebar.illustrationSize, 220)
+  assert.equal(config.surfaces.sidebar.illustrationOpacity, 0.18)
+})
+
+test("normalizeConfig migrates the v3 background into the main surface", () => {
+  const config = normalizeConfig({
+    version: 3,
+    image: "/tmp/legacy.png",
+    illustrationSize: 460,
+    illustrationX: 64,
+    illustrationOpacity: 0.4,
+  })
+
+  assert.equal(config.version, 4)
+  assert.equal(config.surfaces.main.enabled, true)
+  assert.equal(config.surfaces.main.image, "/tmp/legacy.png")
+  assert.equal(config.surfaces.main.illustrationSize, 460)
+  assert.equal(config.surfaces.main.illustrationX, 64)
+  assert.equal(config.surfaces.main.illustrationOpacity, 0.4)
+  assert.equal(config.surfaces.sidebar.enabled, false)
+  assert.equal(config.surfaces.sidebar.image, null)
 })
 
 test("normalizeConfig migrates old default and custom ports", () => {

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
@@ -33,7 +33,7 @@ test("settings server requires its random session cookie", async () => {
     const authorized = await fetch(`${origin}/api/state`, { headers: { cookie } })
     assert.equal(authorized.status, 200)
     const state = (await authorized.json()) as { config: { version: number } }
-    assert.equal(state.config.version, 3)
+    assert.equal(state.config.version, 4)
   } finally {
     await new Promise<void>((resolve) => instance.server.close(() => resolve()))
     await rm(dataDirectory, { recursive: true, force: true })
@@ -88,17 +88,21 @@ test("settings server saves controls and accepts a local image upload", async ()
     const saved = (await savedResponse.json()) as {
       application: { reason: string }
       config: {
-        illustrationBlur: number
-        illustrationOpacity: number
-        illustrationSize: number
-        illustrationX: number
+        surfaces: {
+          main: {
+            illustrationBlur: number
+            illustrationOpacity: number
+            illustrationSize: number
+            illustrationX: number
+          }
+        }
         port: number
       }
     }
-    assert.equal(saved.config.illustrationSize, 440)
-    assert.equal(saved.config.illustrationX, 68)
-    assert.equal(saved.config.illustrationBlur, 9)
-    assert.equal(saved.config.illustrationOpacity, 0.72)
+    assert.equal(saved.config.surfaces.main.illustrationSize, 440)
+    assert.equal(saved.config.surfaces.main.illustrationX, 68)
+    assert.equal(saved.config.surfaces.main.illustrationBlur, 9)
+    assert.equal(saved.config.surfaces.main.illustrationOpacity, 0.72)
     assert.equal(saved.config.port, 9229)
     assert.equal(saved.application.reason, "cdp-unavailable")
 
@@ -112,11 +116,109 @@ test("settings server saves controls and accepts a local image upload", async ()
       body: transparentPng,
     })
     assert.equal(uploadResponse.status, 200)
-    const uploaded = (await uploadResponse.json()) as { config: { image: string } }
-    assert.match(uploaded.config.image, /images\/background-\d+\.png$/)
-    await access(uploaded.config.image)
-    assert.deepEqual(await readFile(uploaded.config.image), transparentPng)
-    assert.equal((await readConfig({ dataDirectory })).image, uploaded.config.image)
+    const uploaded = (await uploadResponse.json()) as {
+      config: { surfaces: { main: { image: string } } }
+    }
+    assert.match(uploaded.config.surfaces.main.image, /images\/background-main-\d+\.png$/)
+    await access(uploaded.config.surfaces.main.image)
+    assert.deepEqual(await readFile(uploaded.config.surfaces.main.image), transparentPng)
+    assert.equal(
+      (await readConfig({ dataDirectory })).surfaces.main.image,
+      uploaded.config.surfaces.main.image,
+    )
+
+    const sidebarImage = Buffer.from([0x52, 0x49, 0x46, 0x46])
+    const sidebarUploadResponse = await fetch(`${origin}/api/surfaces/sidebar/image`, {
+      method: "POST",
+      headers: { cookie, "content-type": "image/webp" },
+      body: sidebarImage,
+    })
+    assert.equal(sidebarUploadResponse.status, 200)
+    const sidebarUploaded = (await sidebarUploadResponse.json()) as {
+      config: {
+        surfaces: {
+          main: { image: string }
+          sidebar: { enabled: boolean; image: string }
+        }
+      }
+    }
+    assert.equal(sidebarUploaded.config.surfaces.main.image, uploaded.config.surfaces.main.image)
+    assert.equal(sidebarUploaded.config.surfaces.sidebar.enabled, true)
+    assert.match(
+      sidebarUploaded.config.surfaces.sidebar.image,
+      /images\/background-sidebar-\d+\.webp$/,
+    )
+    assert.deepEqual(await readFile(sidebarUploaded.config.surfaces.sidebar.image), sidebarImage)
+
+    const sidebarSettingsResponse = await fetch(`${origin}/api/config`, {
+      method: "PUT",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({
+        surfaces: { sidebar: { illustrationSize: 230, illustrationOpacity: 0.2 } },
+      }),
+    })
+    const sidebarSettings = (await sidebarSettingsResponse.json()) as {
+      config: {
+        surfaces: {
+          main: { illustrationSize: number }
+          sidebar: { illustrationOpacity: number; illustrationSize: number }
+        }
+      }
+    }
+    assert.equal(sidebarSettings.config.surfaces.main.illustrationSize, 440)
+    assert.equal(sidebarSettings.config.surfaces.sidebar.illustrationSize, 230)
+    assert.equal(sidebarSettings.config.surfaces.sidebar.illustrationOpacity, 0.2)
+  } finally {
+    await new Promise<void>((resolve) => instance.server.close(() => resolve()))
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})
+
+test("global enable updates synchronize both surface switches", async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-"))
+  await writeConfig(
+    {
+      surfaces: {
+        main: { enabled: true },
+        sidebar: { enabled: false },
+      },
+    },
+    { dataDirectory },
+  )
+  const instance = await listenSettingsServer({
+    dataDirectory,
+    entryPath: "/tmp/codex-skin.ts",
+    token: "test-token",
+    isCdpAvailableImpl: async () => false,
+  })
+  try {
+    const { cookie, origin } = await authenticatedSession(instance.url)
+    const response = await fetch(`${origin}/api/config`, {
+      method: "PUT",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ enabled: false }),
+    })
+    assert.equal(response.status, 200)
+    const payload = (await response.json()) as {
+      config: {
+        enabled: boolean
+        surfaces: { main: { enabled: boolean }; sidebar: { enabled: boolean } }
+      }
+    }
+    assert.equal(payload.config.enabled, false)
+    assert.equal(payload.config.surfaces.main.enabled, false)
+    assert.equal(payload.config.surfaces.sidebar.enabled, false)
+
+    const enabledResponse = await fetch(`${origin}/api/config`, {
+      method: "PUT",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ enabled: true }),
+    })
+    assert.equal(enabledResponse.status, 200)
+    const enabledPayload = (await enabledResponse.json()) as typeof payload
+    assert.equal(enabledPayload.config.enabled, true)
+    assert.equal(enabledPayload.config.surfaces.main.enabled, true)
+    assert.equal(enabledPayload.config.surfaces.sidebar.enabled, true)
   } finally {
     await new Promise<void>((resolve) => instance.server.close(() => resolve()))
     await rm(dataDirectory, { recursive: true, force: true })
@@ -154,6 +256,49 @@ test("settings server restarts Codex only after explicit confirmation", async ()
     })
     assert.equal(confirmedResponse.status, 200)
     assert.deepEqual(restartChoices, [false, true])
+  } finally {
+    await new Promise<void>((resolve) => instance.server.close(() => resolve()))
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})
+
+test("surface uploads keep shared image files until the final reference changes", async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-"))
+  const imageDirectory = path.join(dataDirectory, "images")
+  const sharedImage = path.join(imageDirectory, "background-shared.png")
+  await mkdir(imageDirectory)
+  await writeFile(sharedImage, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+  await writeConfig(
+    {
+      surfaces: {
+        main: { enabled: true, image: sharedImage },
+        sidebar: { enabled: true, image: sharedImage },
+      },
+    },
+    { dataDirectory },
+  )
+  const instance = await listenSettingsServer({
+    dataDirectory,
+    entryPath: "/tmp/codex-skin.ts",
+    token: "test-token",
+    isCdpAvailableImpl: async () => false,
+  })
+  try {
+    const { cookie, origin } = await authenticatedSession(instance.url)
+    const image = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAFAgIAX8jx0gAAAABJRU5ErkJggg==",
+      "base64",
+    )
+    for (const surface of ["main", "sidebar"]) {
+      const response = await fetch(`${origin}/api/surfaces/${surface}/image`, {
+        method: "POST",
+        headers: { cookie, "content-type": "image/png" },
+        body: image,
+      })
+      assert.equal(response.status, 200)
+      if (surface === "main") await access(sharedImage)
+    }
+    await assert.rejects(() => access(sharedImage), { code: "ENOENT" })
   } finally {
     await new Promise<void>((resolve) => instance.server.close(() => resolve()))
     await rm(dataDirectory, { recursive: true, force: true })

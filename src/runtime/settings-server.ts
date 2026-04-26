@@ -19,17 +19,20 @@ import { readDaemonPid } from "./daemon.ts"
 import type {
   BackgroundConfig,
   BackgroundConfigInput,
+  BackgroundSurface,
   DataDirectoryOptions,
   SpawnImplementation,
+  SurfaceBackgroundConfigInput,
 } from "./types.ts"
-import { errorCode, errorMessage } from "./types.ts"
+import { BACKGROUND_SURFACES, errorCode, errorMessage } from "./types.ts"
 
 const MAX_JSON_BYTES = 64 * 1024
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024
 const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000
 const defaultUiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../dist/ui")
 const COOKIE_NAME = "codex_skin_settings"
-const EDITABLE_CONFIG_KEYS = new Set([
+const EDITABLE_CONFIG_KEYS = new Set(["enabled"])
+const EDITABLE_SURFACE_KEYS = new Set([
   "enabled",
   "illustrationSize",
   "illustrationX",
@@ -37,6 +40,9 @@ const EDITABLE_CONFIG_KEYS = new Set([
   "illustrationBlur",
   "illustrationOpacity",
 ])
+const LEGACY_MAIN_SURFACE_KEYS = new Set(
+  [...EDITABLE_SURFACE_KEYS].filter((key) => key !== "enabled"),
+)
 const IMAGE_EXTENSIONS = new Map([
   ["image/avif", ".avif"],
   ["image/gif", ".gif"],
@@ -145,9 +151,38 @@ function editableConfig(input: unknown): BackgroundConfigInput {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("Configuration must be a JSON object.")
   }
-  return Object.fromEntries(
-    Object.entries(input).filter(([key]) => EDITABLE_CONFIG_KEYS.has(key)),
+  const source = input as Record<string, unknown>
+  const result = Object.fromEntries(
+    Object.entries(source).filter(([key]) => EDITABLE_CONFIG_KEYS.has(key)),
   ) as BackgroundConfigInput
+  const surfaces =
+    source.surfaces && typeof source.surfaces === "object" && !Array.isArray(source.surfaces)
+      ? (source.surfaces as Record<string, unknown>)
+      : {}
+  const surfaceUpdates: Partial<Record<BackgroundSurface, SurfaceBackgroundConfigInput>> = {}
+  if (result.enabled !== undefined) {
+    for (const surface of BACKGROUND_SURFACES) {
+      surfaceUpdates[surface] = { enabled: Boolean(result.enabled) }
+    }
+  }
+  const legacyMainUpdate = Object.fromEntries(
+    Object.entries(source).filter(([key]) => LEGACY_MAIN_SURFACE_KEYS.has(key)),
+  )
+  if (Object.keys(legacyMainUpdate).length > 0) {
+    surfaceUpdates.main = { ...surfaceUpdates.main, ...legacyMainUpdate }
+  }
+  for (const surface of BACKGROUND_SURFACES) {
+    const candidate = surfaces[surface]
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue
+    surfaceUpdates[surface] = {
+      ...surfaceUpdates[surface],
+      ...Object.fromEntries(
+        Object.entries(candidate).filter(([key]) => EDITABLE_SURFACE_KEYS.has(key)),
+      ),
+    }
+  }
+  if (Object.keys(surfaceUpdates).length > 0) result.surfaces = surfaceUpdates
+  return result
 }
 
 async function statePayload(config: BackgroundConfig, options: SettingsOptions) {
@@ -162,15 +197,27 @@ async function statePayload(config: BackgroundConfig, options: SettingsOptions) 
 
 async function saveAndSync(input: unknown, options: SettingsOptions) {
   const current = await readConfig({ dataDirectory: options.dataDirectory })
+  const updates = editableConfig(input)
   const config = await writeConfig(
-    { ...current, ...editableConfig(input) },
+    {
+      ...current,
+      ...updates,
+      surfaces: {
+        main: { ...current.surfaces.main, ...updates.surfaces?.main },
+        sidebar: { ...current.surfaces.sidebar, ...updates.surfaces?.sidebar },
+      },
+    },
     { dataDirectory: options.dataDirectory },
   )
   const application = await syncConfiguredBackground(config, options)
   return { ...(await statePayload(config, options)), application }
 }
 
-async function uploadImage(request: IncomingMessage, options: SettingsOptions) {
+async function uploadImage(
+  request: IncomingMessage,
+  surface: BackgroundSurface,
+  options: SettingsOptions,
+) {
   const mediaType = String(request.headers["content-type"] || "")
     .split(";", 1)[0]
     ?.toLowerCase()
@@ -182,7 +229,7 @@ async function uploadImage(request: IncomingMessage, options: SettingsOptions) {
   const imageDirectory = path.join(options.dataDirectory || resolveDataDirectory(), "images")
   await mkdir(imageDirectory, { recursive: true, mode: 0o700 })
   const now = Date.now()
-  const target = path.join(imageDirectory, `background-${now}${extension}`)
+  const target = path.join(imageDirectory, `background-${surface}-${now}${extension}`)
   const temporary = `${target}.${process.pid}.tmp${extension}`
   await writeFile(temporary, contents, { mode: 0o600 })
   try {
@@ -194,15 +241,35 @@ async function uploadImage(request: IncomingMessage, options: SettingsOptions) {
   }
 
   const previous = await readConfig({ dataDirectory: options.dataDirectory })
+  const previousImage = previous.surfaces[surface].image
   const config = await writeConfig(
-    { ...previous, image: target },
+    {
+      ...previous,
+      surfaces: {
+        ...previous.surfaces,
+        [surface]: { ...previous.surfaces[surface], enabled: true, image: target },
+      },
+    },
     { dataDirectory: options.dataDirectory },
   )
-  if (previous.image?.startsWith(`${imageDirectory}${path.sep}`) && previous.image !== target) {
-    await rm(previous.image, { force: true })
+  const imageStillReferenced = BACKGROUND_SURFACES.some(
+    (candidate) => config.surfaces[candidate].image === previousImage,
+  )
+  if (
+    previousImage?.startsWith(`${imageDirectory}${path.sep}`) &&
+    previousImage !== target &&
+    !imageStillReferenced
+  ) {
+    await rm(previousImage, { force: true })
   }
   const application = await syncConfiguredBackground(config, options)
   return { ...(await statePayload(config, options)), application }
+}
+
+function imageSurface(pathname: string): BackgroundSurface | undefined {
+  if (pathname === "/api/image") return "main"
+  const match = pathname.match(/^\/api\/surfaces\/(main|sidebar)\/image$/)
+  return match?.[1] as BackgroundSurface | undefined
 }
 
 function statusForError(error: unknown) {
@@ -274,21 +341,23 @@ export function createSettingsHttpServer(options: SettingsOptions) {
         return
       }
 
-      if (request.method === "GET" && url.pathname === "/api/image") {
+      const requestedImageSurface = imageSurface(url.pathname)
+      if (request.method === "GET" && requestedImageSurface) {
         const config = await readConfig({ dataDirectory })
-        if (!config.image) {
+        const image = config.surfaces[requestedImageSurface].image
+        if (!image) {
           response.statusCode = 404
           response.end()
           return
         }
-        const extension = path.extname(config.image).toLowerCase()
+        const extension = path.extname(image).toLowerCase()
         const mediaType =
           [...IMAGE_EXTENSIONS.entries()].find(([, value]) => value === extension)?.[0] ||
           (extension === ".jpeg" ? "image/jpeg" : null)
         if (!mediaType) throw new Error("The configured image type is not supported.")
         response.statusCode = 200
         response.setHeader("content-type", mediaType)
-        response.end(await readFile(config.image))
+        response.end(await readFile(image))
         return
       }
 
@@ -297,8 +366,8 @@ export function createSettingsHttpServer(options: SettingsOptions) {
         return
       }
 
-      if (request.method === "POST" && url.pathname === "/api/image") {
-        sendJson(response, 200, await uploadImage(request, runtimeOptions))
+      if (request.method === "POST" && requestedImageSurface) {
+        sendJson(response, 200, await uploadImage(request, requestedImageSurface, runtimeOptions))
         return
       }
 

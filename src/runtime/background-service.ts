@@ -1,7 +1,7 @@
 import { access } from "node:fs/promises"
 
 import { isCdpAvailable } from "./cdp.ts"
-import { writeConfig } from "./config.ts"
+import { configuredBackgroundSurfaces, writeConfig } from "./config.ts"
 import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
 import { ensureDaemon, stopDaemon } from "./daemon.ts"
 import { injectAllTargets, removeFromAllTargets } from "./injector.ts"
@@ -16,7 +16,12 @@ import {
   waitForCodexExit,
 } from "./macos.ts"
 import type { CdpPortInspection } from "./macos.ts"
-import type { BackgroundApplication, BackgroundConfig, InjectionResult } from "./types.ts"
+import {
+  BACKGROUND_SURFACES,
+  type BackgroundApplication,
+  type BackgroundConfig,
+  type InjectionResult,
+} from "./types.ts"
 
 interface ServiceOptions {
   appExecutableExistsImpl?: (appPath: string) => Promise<boolean>
@@ -105,6 +110,18 @@ export async function injectConfiguredBackground(
   return successes.length
 }
 
+async function validateConfiguredImages(config: BackgroundConfig) {
+  const surfaces = configuredBackgroundSurfaces(config)
+  if (surfaces.length === 0) return false
+  await Promise.all(
+    surfaces.map(async (surface) => {
+      const image = config.surfaces[surface].image
+      if (image) await imageFileToDataUrl(image)
+    }),
+  )
+  return true
+}
+
 export async function syncConfiguredBackground(
   config: BackgroundConfig,
   options: ServiceOptions = {},
@@ -119,8 +136,12 @@ export async function syncConfiguredBackground(
     return { applied: true, mode: "removed", pid, targets }
   }
 
-  if (!config.image) return { applied: false, mode: "saved", reason: "image-missing" }
-  await imageFileToDataUrl(config.image)
+  if (!(await validateConfiguredImages(config))) {
+    const pid = await stop()
+    const { httpReady } = await configuredCdpIsReady(config, options)
+    const targets = httpReady ? await remove({ port: config.port }) : 0
+    return { applied: true, mode: "removed", pid, targets }
+  }
   const { httpReady, inspection } = await configuredCdpIsReady(config, options)
   if (inspection.state === "occupied") {
     throw new BackgroundStateError(
@@ -144,10 +165,9 @@ export async function startConfiguredBackground(
   options: ServiceOptions = {},
 ): Promise<BackgroundApplication> {
   if (!config.enabled) throw new BackgroundStateError("DISABLED", "Codex Skin is disabled.")
-  if (!config.image) {
+  if (!(await validateConfiguredImages(config))) {
     throw new BackgroundStateError("IMAGE_MISSING", "No background image is configured.")
   }
-  await imageFileToDataUrl(config.image)
   if (!(await (options.appExecutableExistsImpl || appExecutableExists)(config.appPath))) {
     throw new BackgroundStateError(
       "APP_MISSING",
@@ -217,15 +237,29 @@ export async function startConfiguredBackground(
 }
 
 export async function backgroundStatus(config: BackgroundConfig, options: ServiceOptions = {}) {
-  const imageReadable = config.image
-    ? await access(config.image)
-        .then(() => true)
-        .catch(() => false)
-    : false
   const { httpReady, inspection } = await configuredCdpIsReady(config, options)
+  const surfaceEntries = await Promise.all(
+    BACKGROUND_SURFACES.map(async (surface) => {
+      const image = config.surfaces[surface].image
+      const imageReadable = image
+        ? await access(image)
+            .then(() => true)
+            .catch(() => false)
+        : false
+      return [surface, { imageReadable }] as const
+    }),
+  )
+  const surfaces = Object.fromEntries(surfaceEntries) as Record<
+    (typeof BACKGROUND_SURFACES)[number],
+    { imageReadable: boolean }
+  >
+  const imageReadable = configuredBackgroundSurfaces(config).some(
+    (surface) => surfaces[surface].imageReadable,
+  )
   return {
     cdpAvailable: httpReady,
     cdpPortState: inspection.state,
     imageReadable,
+    surfaces,
   }
 }

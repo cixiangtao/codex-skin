@@ -6,7 +6,12 @@ import {
   injectConfiguredBackground,
   startConfiguredBackground,
 } from "./background-service.ts"
-import { readConfig, resolveConfigPath, writeConfig } from "./config.ts"
+import {
+  configuredBackgroundSurfaces,
+  readConfig,
+  resolveConfigPath,
+  writeConfig,
+} from "./config.ts"
 import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
 import { readDaemonPid, runDaemon, stopDaemon } from "./daemon.ts"
 import { removeFromAllTargets, verifyAllTargets } from "./injector.ts"
@@ -18,9 +23,24 @@ import {
   openSettingsPage,
   runSettingsServerDaemon,
 } from "./settings-server.ts"
-import type { BackgroundConfig, BackgroundConfigInput } from "./types.ts"
+import type { BackgroundConfig, BackgroundSurface } from "./types.ts"
 
-type CommandOption = keyof BackgroundConfigInput | "autoPort" | "disabled" | "reload"
+type CommandOption =
+  | "appPath"
+  | "autoPort"
+  | "disabled"
+  | "enabled"
+  | "image"
+  | "illustrationBlur"
+  | "illustrationOpacity"
+  | "illustrationSize"
+  | "illustrationX"
+  | "illustrationY"
+  | "port"
+  | "reload"
+  | "surface"
+  | "surfaceDisabled"
+  | "surfaceEnabled"
 
 interface CommandIo {
   log(message: string): void
@@ -34,6 +54,9 @@ interface CliOptions {
 
 const OPTION_NAMES = new Map<string, CommandOption>([
   ["--image", "image"],
+  ["--surface", "surface"],
+  ["--enable-surface", "surfaceEnabled"],
+  ["--disable-surface", "surfaceDisabled"],
   ["--illustration-size", "illustrationSize"],
   ["--x", "illustrationX"],
   ["--y", "illustrationY"],
@@ -46,7 +69,14 @@ const OPTION_NAMES = new Map<string, CommandOption>([
   ["--reload", "reload"],
   ["--auto-port", "autoPort"],
 ])
-const BOOLEAN_OPTIONS = new Set(["--auto-port", "--enable", "--disable", "--reload"])
+const BOOLEAN_OPTIONS = new Set([
+  "--auto-port",
+  "--enable",
+  "--disable",
+  "--enable-surface",
+  "--disable-surface",
+  "--reload",
+])
 const DEVELOPMENT_API_PORT = 4179
 const DEVELOPMENT_UI_URL = "http://127.0.0.1:4178/"
 
@@ -62,6 +92,9 @@ Usage:
 
 Options:
   --image PATH                 PNG, JPEG, WebP, GIF, or AVIF up to 25 MB
+  --surface main|sidebar       Target surface for image and appearance options
+  --enable-surface             Enable the selected surface
+  --disable-surface            Disable the selected surface
   --illustration-size 80..1200 Illustration width in pixels
   --x 0..100                   Horizontal illustration position
   --y 0..100                   Vertical illustration position
@@ -101,22 +134,46 @@ function printableConfig(config: BackgroundConfig) {
 
 async function configure(options: Record<string, string | boolean>, io: CommandIo) {
   const current = await readConfig()
-  const updates: BackgroundConfigInput = { ...options }
-  if (updates.disabled) {
-    updates.enabled = false
-    delete updates.disabled
+  const surface = String(options.surface || "main")
+  if (surface !== "main" && surface !== "sidebar") {
+    throw new Error(`Unknown background surface: ${surface}`)
   }
-  if (updates.autoPort) {
-    updates.portMode = "auto"
-    delete updates.autoPort
-  } else if (updates.port !== undefined) {
-    updates.portMode = "fixed"
+  const selectedSurface = surface as BackgroundSurface
+  const next: BackgroundConfig = {
+    ...current,
+    enabled: options.disabled ? false : options.enabled ? true : current.enabled,
+    port:
+      options.port === undefined || !Number.isFinite(Number(options.port))
+        ? current.port
+        : Number(options.port),
+    portMode: options.autoPort ? "auto" : options.port !== undefined ? "fixed" : current.portMode,
+    appPath: typeof options.appPath === "string" ? options.appPath : current.appPath,
+    surfaces: {
+      ...current.surfaces,
+      [selectedSurface]: {
+        ...current.surfaces[selectedSurface],
+        ...(options.surfaceDisabled ? { enabled: false } : {}),
+        ...(options.surfaceEnabled ? { enabled: true } : {}),
+      },
+    },
   }
-  if (typeof updates.image === "string") {
-    updates.image = path.resolve(updates.image)
-    await imageFileToDataUrl(updates.image)
+
+  const surfaceUpdates = next.surfaces[selectedSurface]
+  if (typeof options.image === "string") {
+    surfaceUpdates.image = path.resolve(options.image)
+    surfaceUpdates.enabled = true
+    await imageFileToDataUrl(surfaceUpdates.image)
   }
-  const config = await writeConfig({ ...current, ...updates })
+  for (const key of [
+    "illustrationSize",
+    "illustrationX",
+    "illustrationY",
+    "illustrationBlur",
+    "illustrationOpacity",
+  ] as const) {
+    if (options[key] !== undefined) surfaceUpdates[key] = Number(options[key])
+  }
+  const config = await writeConfig(next)
   io.log(printableConfig(config))
 }
 
@@ -146,7 +203,7 @@ async function runDevelopmentServer(entryPath: string, io: CommandIo) {
 
 async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
   const config = await readConfig()
-  if (!config.image) {
+  if (configuredBackgroundSurfaces(config).length === 0) {
     await openSettings(entryPath, io)
     io.log("Choose a character image in the settings page to continue.")
     return 0
@@ -181,17 +238,26 @@ async function requireConfiguredCdp(config: BackgroundConfig) {
 }
 
 export function verificationChecks(result: TargetVerification) {
-  return [
+  const checks: Array<readonly [string, boolean]> = [
     ["injection marker enabled", result.enabled],
     ["background style present", result.stylePresent],
     ["configuration hash matches", result.hashMatches],
-    ["workspace surface found", result.surfacePresent],
-    [
+  ]
+  if (result.surfaces) {
+    for (const [surface, verification] of Object.entries(result.surfaces)) {
+      if (!verification.expected) continue
+      checks.push([`${surface} surface found`, verification.present])
+      checks.push([`${surface} background image active`, verification.pass])
+    }
+  } else {
+    checks.push(["workspace surface found", result.surfacePresent])
+    checks.push([
       "pseudo-element background image active",
       result.backgroundImage !== "" && result.backgroundImage !== "none",
-    ],
-    ["decorative layer ignores pointer events", result.pointerEvents === "none"],
-  ] as const
+    ])
+  }
+  checks.push(["decorative layer ignores pointer events", result.pointerEvents === "none"])
+  return checks
 }
 
 export function isSupportedNodeVersion(version = process.versions.node) {
@@ -202,18 +268,26 @@ export function isSupportedNodeVersion(version = process.versions.node) {
 async function doctor(io: CommandIo) {
   const config = await readConfig()
   const cdp = await configuredCdpIsReady(config)
+  const configuredSurfaces = configuredBackgroundSurfaces(config)
+  const configuredImagesReadable =
+    configuredSurfaces.length > 0 &&
+    (
+      await Promise.all(
+        configuredSurfaces.map(async (surface) => {
+          const image = config.surfaces[surface].image
+          return image
+            ? await access(image)
+                .then(() => true)
+                .catch(() => false)
+            : false
+        }),
+      )
+    ).every(Boolean)
   const checks: Array<[string, boolean]> = [
     ["Node.js 22+", isSupportedNodeVersion()],
     ["ChatGPT executable", await appExecutableExists(config.appPath)],
-    ["Background image configured", Boolean(config.image)],
-    [
-      "Background image readable",
-      config.image
-        ? await access(config.image)
-            .then(() => true)
-            .catch(() => false)
-        : false,
-    ],
+    ["Background image configured", configuredSurfaces.length > 0],
+    ["Background image readable", configuredImagesReadable],
     [`Codex-owned CDP 127.0.0.1:${config.port}`, cdp.httpReady],
     ["Background daemon", Boolean(await readDaemonPid())],
   ]

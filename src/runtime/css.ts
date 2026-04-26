@@ -1,8 +1,9 @@
 import { readFile, stat } from "node:fs/promises"
 import path from "node:path"
 
-import { normalizeConfig } from "./config.ts"
-import type { BackgroundConfigLike } from "./types.ts"
+import { anchoredBackgroundPosition } from "../shared/background-position.ts"
+import { configuredBackgroundSurfaces, normalizeConfig } from "./config.ts"
+import type { BackgroundConfigLike, BackgroundSurface, SurfaceBackgroundConfig } from "./types.ts"
 
 const IMAGE_TYPES = new Map([
   [".avif", "image/avif"],
@@ -28,32 +29,54 @@ export async function imageFileToDataUrl(imagePath: string) {
   return `data:${mediaType};base64,${contents.toString("base64")}`
 }
 
-/** Builds the isolated character layer injected into Codex's main workspace. */
-export async function buildBackgroundCss(input: BackgroundConfigLike) {
-  const config = normalizeConfig(input)
-  if (!config.enabled) throw new Error("Codex background is disabled.")
-  if (!config.image) throw new Error("No background image is configured.")
-  const dataUrl = await imageFileToDataUrl(config.image)
+const SURFACE_SELECTORS = {
+  main: [
+    ':root[data-codex-window-type="electron"] .main-surface',
+    ':root[data-codex-window-type="electron"] .browser-main-surface',
+  ],
+  sidebar: [':root[data-codex-window-type="electron"] .app-shell-left-panel'],
+} as const satisfies Record<BackgroundSurface, readonly string[]>
+
+function surfaceCss(surface: BackgroundSurface, config: SurfaceBackgroundConfig, dataUrl: string) {
+  const selectors = SURFACE_SELECTORS[surface]
+  const roots = selectors.join(",\n")
+  const pseudoElements = selectors.map((selector) => `${selector}::before`).join(",\n")
+  const clipping = surface === "sidebar" ? "\n  clip-path: inset(0);" : ""
+
   return `
-:root[data-codex-window-type="electron"] .main-surface,
-:root[data-codex-window-type="electron"] .browser-main-surface {
+${roots} {
   position: relative !important;
   isolation: isolate;
 }
 
-:root[data-codex-window-type="electron"] .main-surface::before,
-:root[data-codex-window-type="electron"] .browser-main-surface::before {
+${pseudoElements} {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background-image: url("${dataUrl}") !important;
-  background-position: ${config.illustrationX}% ${config.illustrationY}% !important;
+  background-position: ${anchoredBackgroundPosition(config.illustrationX, config.illustrationY)} !important;
   background-repeat: no-repeat !important;
   background-size: ${config.illustrationSize}px auto !important;
   filter: blur(${config.illustrationBlur}px);
-  opacity: ${config.illustrationOpacity};
+  opacity: ${config.illustrationOpacity};${clipping}
+}`.trim()
 }
-`.trim()
+
+/** Builds independent character layers for every enabled Codex surface. */
+export async function buildBackgroundCss(input: BackgroundConfigLike) {
+  const config = normalizeConfig(input)
+  if (!config.enabled) throw new Error("Codex background is disabled.")
+  const surfaces = configuredBackgroundSurfaces(config)
+  if (surfaces.length === 0) throw new Error("No background image is configured.")
+
+  const rules = await Promise.all(
+    surfaces.map(async (surface) => {
+      const surfaceConfig = config.surfaces[surface]
+      if (!surfaceConfig.image) throw new Error(`No ${surface} background image is configured.`)
+      return surfaceCss(surface, surfaceConfig, await imageFileToDataUrl(surfaceConfig.image))
+    }),
+  )
+  return rules.join("\n\n")
 }

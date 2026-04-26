@@ -5,20 +5,38 @@ import path from "node:path"
 import type {
   BackgroundConfig,
   BackgroundConfigLike,
+  BackgroundSurface,
   ConfigOptions,
   DataDirectoryOptions,
+  SurfaceBackgroundConfig,
 } from "./types.ts"
-import { errorCode } from "./types.ts"
+import { BACKGROUND_SURFACES, errorCode } from "./types.ts"
+
+export const DEFAULT_SURFACE_CONFIGS = Object.freeze({
+  main: {
+    enabled: true,
+    image: null,
+    illustrationSize: 360,
+    illustrationX: 82,
+    illustrationY: 76,
+    illustrationBlur: 0,
+    illustrationOpacity: 1,
+  },
+  sidebar: {
+    enabled: false,
+    image: null,
+    illustrationSize: 240,
+    illustrationX: 50,
+    illustrationY: 80,
+    illustrationBlur: 0,
+    illustrationOpacity: 0.24,
+  },
+} as const satisfies Record<BackgroundSurface, SurfaceBackgroundConfig>)
 
 export const DEFAULT_CONFIG = Object.freeze({
-  version: 3,
+  version: 4,
   enabled: true,
-  image: null,
-  illustrationSize: 360,
-  illustrationX: 82,
-  illustrationY: 76,
-  illustrationBlur: 0,
-  illustrationOpacity: 1,
+  surfaces: DEFAULT_SURFACE_CONFIGS,
   port: 9229,
   portMode: "auto",
   pollIntervalMs: 3000,
@@ -46,19 +64,61 @@ function clampNumber(value: unknown, minimum: number, maximum: number, fallback:
   return Math.min(maximum, Math.max(minimum, number))
 }
 
-export function normalizeConfig(
-  input: BackgroundConfigLike | unknown = {},
-  options: ConfigOptions = {},
-): BackgroundConfig {
-  const source: Record<string, unknown> =
-    input && typeof input === "object" && !Array.isArray(input)
-      ? (input as Record<string, unknown>)
-      : {}
-  const workingDirectory = options.cwd || process.cwd()
+function objectRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
+}
+
+function normalizeSurface(
+  input: unknown,
+  fallback: SurfaceBackgroundConfig,
+  workingDirectory: string,
+): SurfaceBackgroundConfig {
+  const source = objectRecord(input)
   const image =
     typeof source.image === "string" && source.image.trim()
       ? path.resolve(workingDirectory, source.image.trim())
       : null
+
+  return {
+    enabled: source.enabled === undefined ? fallback.enabled : Boolean(source.enabled),
+    image,
+    illustrationSize: Math.round(
+      clampNumber(source.illustrationSize, 80, 1200, fallback.illustrationSize),
+    ),
+    illustrationX: clampNumber(source.illustrationX, 0, 100, fallback.illustrationX),
+    illustrationY: clampNumber(source.illustrationY, 0, 100, fallback.illustrationY),
+    illustrationBlur: clampNumber(source.illustrationBlur, 0, 30, fallback.illustrationBlur),
+    illustrationOpacity: clampNumber(
+      source.illustrationOpacity,
+      0,
+      1,
+      fallback.illustrationOpacity,
+    ),
+  }
+}
+
+function legacyMainSurface(source: Record<string, unknown>) {
+  return {
+    enabled: true,
+    image: source.image,
+    illustrationSize: source.illustrationSize,
+    illustrationX: source.illustrationX,
+    illustrationY: source.illustrationY,
+    illustrationBlur: source.illustrationBlur,
+    illustrationOpacity: source.illustrationOpacity,
+  }
+}
+
+export function normalizeConfig(
+  input: BackgroundConfigLike | unknown = {},
+  options: ConfigOptions = {},
+): BackgroundConfig {
+  const source = objectRecord(input)
+  const workingDirectory = options.cwd || process.cwd()
+  const surfaces = objectRecord(source.surfaces)
+  const hasStructuredSurfaces = BACKGROUND_SURFACES.some((surface) => surface in surfaces)
   const appPath =
     typeof source.appPath === "string" && source.appPath.trim()
       ? path.resolve(workingDirectory, source.appPath.trim())
@@ -75,21 +135,20 @@ export function normalizeConfig(
         : DEFAULT_CONFIG.portMode
 
   return {
-    version: 3,
+    version: 4,
     enabled: source.enabled === undefined ? DEFAULT_CONFIG.enabled : Boolean(source.enabled),
-    image,
-    illustrationSize: Math.round(
-      clampNumber(source.illustrationSize, 80, 1200, DEFAULT_CONFIG.illustrationSize),
-    ),
-    illustrationX: clampNumber(source.illustrationX, 0, 100, DEFAULT_CONFIG.illustrationX),
-    illustrationY: clampNumber(source.illustrationY, 0, 100, DEFAULT_CONFIG.illustrationY),
-    illustrationBlur: clampNumber(source.illustrationBlur, 0, 30, DEFAULT_CONFIG.illustrationBlur),
-    illustrationOpacity: clampNumber(
-      source.illustrationOpacity,
-      0,
-      1,
-      DEFAULT_CONFIG.illustrationOpacity,
-    ),
+    surfaces: {
+      main: normalizeSurface(
+        hasStructuredSurfaces ? surfaces.main : legacyMainSurface(source),
+        DEFAULT_SURFACE_CONFIGS.main,
+        workingDirectory,
+      ),
+      sidebar: normalizeSurface(
+        hasStructuredSurfaces ? surfaces.sidebar : undefined,
+        DEFAULT_SURFACE_CONFIGS.sidebar,
+        workingDirectory,
+      ),
+    },
     port,
     portMode,
     pollIntervalMs: Math.round(
@@ -105,12 +164,20 @@ export async function readConfig(options: ConfigOptions = {}) {
     const raw = JSON.parse(await readFile(configPath, "utf8")) as unknown
     return normalizeConfig(raw, options)
   } catch (error) {
-    if (errorCode(error) === "ENOENT") return { ...DEFAULT_CONFIG }
+    if (errorCode(error) === "ENOENT") return normalizeConfig(DEFAULT_CONFIG, options)
     if (error instanceof SyntaxError) {
       throw new Error(`Invalid JSON in ${configPath}: ${error.message}`, { cause: error })
     }
     throw error
   }
+}
+
+/** Returns enabled surfaces with a configured image in stable display order. */
+export function configuredBackgroundSurfaces(config: BackgroundConfig) {
+  return BACKGROUND_SURFACES.filter((surface) => {
+    const surfaceConfig = config.surfaces[surface]
+    return surfaceConfig.enabled && Boolean(surfaceConfig.image)
+  })
 }
 
 export async function writeConfig(input: BackgroundConfigLike, options: ConfigOptions = {}) {

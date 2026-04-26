@@ -24,6 +24,18 @@ export interface BackgroundVerification {
   pointerEvents: string
   stylePresent: boolean
   surfacePresent: boolean
+  surfaces?: {
+    main: SurfaceVerification
+    sidebar: SurfaceVerification
+  }
+}
+
+export interface SurfaceVerification {
+  backgroundImage: string
+  expected: boolean
+  pass: boolean
+  pointerEvents: string
+  present: boolean
 }
 
 export interface TargetVerification extends BackgroundVerification {
@@ -89,24 +101,46 @@ export function buildInjectionExpression(css: string) {
 export function buildVerificationExpression(css: string) {
   const serializedId = serializeForJavaScript(BACKGROUND_STYLE_ID)
   const serializedHash = serializeForJavaScript(backgroundCssHash(css))
+  const expectedMain = css.includes(".main-surface::before")
+  const expectedSidebar = css.includes(".app-shell-left-panel::before")
   return `(() => {
     const style = document.getElementById(${serializedId});
-    const surface = document.querySelector('.main-surface, .browser-main-surface');
-    const pseudo = surface ? getComputedStyle(surface, '::before') : null;
+    const inspectSurface = (selector, expected) => {
+      const surface = document.querySelector(selector);
+      const pseudo = surface ? getComputedStyle(surface, '::before') : null;
+      const result = {
+        expected,
+        present: Boolean(surface),
+        backgroundImage: pseudo?.backgroundImage || '',
+        pointerEvents: pseudo?.pointerEvents || '',
+      };
+      return {
+        ...result,
+        pass: !expected || (result.present && result.backgroundImage !== '' &&
+          result.backgroundImage !== 'none' && result.pointerEvents === 'none'),
+      };
+    };
+    const surfaces = {
+      main: inspectSurface('.main-surface, .browser-main-surface', ${expectedMain}),
+      sidebar: inspectSurface('.app-shell-left-panel', ${expectedSidebar}),
+    };
+    const expectedSurfaces = Object.values(surfaces).filter((surface) => surface.expected);
+    const surfacesPass = expectedSurfaces.length > 0 && expectedSurfaces.every((surface) => surface.pass);
     const result = {
       href: location.href,
       enabled: document.documentElement.dataset.codexSkin === 'enabled',
       stylePresent: Boolean(style),
       hashMatches: style?.dataset.codexSkinHash === ${serializedHash},
-      surfacePresent: Boolean(surface),
-      backgroundImage: pseudo?.backgroundImage || '',
-      pointerEvents: pseudo?.pointerEvents || '',
+      surfaces,
+      surfacePresent: expectedSurfaces.every((surface) => surface.present),
+      backgroundImage: surfacesPass ? 'active' : 'none',
+      pointerEvents: expectedSurfaces.every((surface) => surface.pointerEvents === 'none')
+        ? 'none'
+        : '',
     };
     return {
       ...result,
-      pass: result.enabled && result.stylePresent && result.hashMatches && result.surfacePresent &&
-        result.backgroundImage !== '' && result.backgroundImage !== 'none' &&
-        result.pointerEvents === 'none',
+      pass: result.enabled && result.stylePresent && result.hashMatches && surfacesPass,
     };
   })()`
 }
@@ -341,6 +375,22 @@ export async function verifyAllTargets({
         pointerEvents: "",
         stylePresent: false,
         surfacePresent: false,
+        surfaces: {
+          main: {
+            backgroundImage: "",
+            expected: false,
+            pass: false,
+            pointerEvents: "",
+            present: false,
+          },
+          sidebar: {
+            backgroundImage: "",
+            expected: false,
+            pass: false,
+            pointerEvents: "",
+            present: false,
+          },
+        },
         title: target.title,
         url: target.url,
       })

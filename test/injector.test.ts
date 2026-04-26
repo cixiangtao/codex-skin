@@ -22,11 +22,13 @@ test("buildInjectionExpression is idempotent and preserves arbitrary CSS", () =>
 })
 
 test("buildVerificationExpression checks the exact applied CSS", () => {
-  const css = ".main-surface::before { content: ''; }"
+  const css = ".main-surface::before, .app-shell-left-panel::before { content: ''; }"
   const expression = buildVerificationExpression(css)
   assert.match(expression, new RegExp(backgroundCssHash(css)))
   assert.match(expression, /backgroundImage/)
   assert.match(expression, /pointerEvents/)
+  assert.match(expression, /app-shell-left-panel/)
+  assert.match(expression, /expected/)
 })
 
 test("evaluateOnTarget surfaces renderer exceptions", async () => {

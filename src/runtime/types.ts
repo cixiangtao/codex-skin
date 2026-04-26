@@ -1,7 +1,10 @@
 import type { ChildProcess, SpawnOptions } from "node:child_process"
 
-export interface BackgroundConfig {
-  version: 3
+export const BACKGROUND_SURFACES = ["main", "sidebar"] as const
+
+export type BackgroundSurface = (typeof BACKGROUND_SURFACES)[number]
+
+export interface SurfaceBackgroundConfig {
   enabled: boolean
   image: string | null
   illustrationSize: number
@@ -9,13 +12,24 @@ export interface BackgroundConfig {
   illustrationY: number
   illustrationBlur: number
   illustrationOpacity: number
+}
+
+export interface BackgroundConfig {
+  version: 4
+  enabled: boolean
+  surfaces: Record<BackgroundSurface, SurfaceBackgroundConfig>
   port: number
   portMode: "auto" | "fixed"
   pollIntervalMs: number
   appPath: string
 }
 
-export type BackgroundConfigInput = Partial<BackgroundConfig> & Record<string, unknown>
+export type SurfaceBackgroundConfigInput = Partial<SurfaceBackgroundConfig> &
+  Record<string, unknown>
+
+export type BackgroundConfigInput = Partial<Omit<BackgroundConfig, "surfaces">> & {
+  surfaces?: Partial<Record<BackgroundSurface, SurfaceBackgroundConfigInput>>
+} & Record<string, unknown>
 export type BackgroundConfigLike = BackgroundConfig | BackgroundConfigInput
 
 export interface DataDirectoryOptions {
