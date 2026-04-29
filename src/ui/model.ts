@@ -1,5 +1,7 @@
 import type {
   BackgroundApplication,
+  BackgroundConfig,
+  BackgroundSurface,
   BackgroundStatus,
   PreviewTheme,
   StatePayload,
@@ -15,19 +17,83 @@ export const acceptedImageTypes = new Set([
 
 export const defaultConfig = {
   enabled: false,
-  image: null,
-  illustrationSize: 360,
-  illustrationX: 82,
-  illustrationY: 76,
-  illustrationBlur: 0,
-  illustrationOpacity: 1,
+  surfaces: {
+    main: {
+      enabled: true,
+      image: null,
+      illustrationSize: 360,
+      illustrationX: 82,
+      illustrationY: 76,
+      illustrationBlur: 0,
+      illustrationOpacity: 1,
+    },
+    sidebar: {
+      enabled: false,
+      image: null,
+      illustrationSize: 240,
+      illustrationX: 50,
+      illustrationY: 80,
+      illustrationBlur: 0,
+      illustrationOpacity: 0.24,
+    },
+  },
 } as const satisfies StatePayload["config"]
+
+export const backgroundSurfaces = [
+  { label: "主面板", value: "main" },
+  { label: "侧边栏", value: "sidebar" },
+] as const satisfies ReadonlyArray<{ label: string; value: BackgroundSurface }>
 
 export const previewThemes = [
   { label: "系统", value: "system" },
   { label: "浅色", value: "light" },
   { label: "深色", value: "dark" },
 ] as const satisfies ReadonlyArray<{ label: string; value: PreviewTheme }>
+
+/** Resolves a surface switch together with the global background switch. */
+export function backgroundSurfaceIsEnabled(config: BackgroundConfig, surface: BackgroundSurface) {
+  return config.enabled && config.surfaces[surface].enabled
+}
+
+/** Applies the master switch to the global state and both surface switches. */
+export function setAllBackgroundsEnabled(config: BackgroundConfig, enabled: boolean) {
+  return {
+    ...config,
+    enabled,
+    surfaces: {
+      main: { ...config.surfaces.main, enabled },
+      sidebar: { ...config.surfaces.sidebar, enabled },
+    },
+  }
+}
+
+interface BackgroundPositionDrag {
+  illustrationLength: number
+  initialPosition: number
+  pointerDelta: number
+  stageLength: number
+}
+
+const MINIMUM_BACKGROUND_TRAVEL_PX = 0.5
+
+/**
+ * Converts a physical drag distance back into a CSS background-position percentage.
+ *
+ * CSS aligns the same percentage point of the image and its container, so its physical
+ * offset is `position * (stageLength - illustrationLength)`. The travel becomes negative
+ * when an image is larger than the stage; dividing by that signed distance keeps the image
+ * following the pointer while preserving the runtime background-position contract.
+ */
+export function backgroundPositionFromDrag({
+  illustrationLength,
+  initialPosition,
+  pointerDelta,
+  stageLength,
+}: BackgroundPositionDrag) {
+  const availableTravel = stageLength - illustrationLength
+  if (Math.abs(availableTravel) < MINIMUM_BACKGROUND_TRAVEL_PX) return initialPosition
+  return Math.max(0, Math.min(100, initialPosition + (pointerDelta / availableTravel) * 100))
+}
 
 /** Sends an authenticated request to the local Codex Skin settings server. */
 export async function api<ResponsePayload>(requestPath: string, options: RequestInit = {}) {

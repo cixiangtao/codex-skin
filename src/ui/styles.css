@@ -12,10 +12,6 @@
 
 :root {
   color-scheme: light;
-  --illustration-x: 82%;
-  --illustration-y: 76%;
-  --illustration-translate-x: -82%;
-  --illustration-translate-y: -76%;
   --illustration-preview-size: 30%;
   --illustration-blur: 0px;
   --illustration-opacity: 1;
@@ -263,9 +259,25 @@ label:has(input:focus-visible) {
 }
 
 .mock-sidebar {
+  position: relative;
+  overflow: hidden;
   padding: 15px clamp(10px, 1.7vw, 24px);
   background: var(--mock-sidebar-background);
   border-right: 1px solid var(--mock-divider);
+}
+
+.mock-sidebar-content {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.surface-stage {
+  transition: box-shadow 160ms ease;
+}
+
+.surface-stage.is-active {
+  box-shadow: inset 0 0 0 1px rgb(240 168 59 / 0.7);
 }
 
 .mock-traffic {
@@ -326,16 +338,12 @@ label:has(input:focus-visible) {
 
 .illustration {
   position: absolute;
-  top: var(--illustration-y);
-  left: var(--illustration-x);
   z-index: 1;
   width: var(--illustration-preview-size);
-  max-width: 80%;
   cursor: grab;
   touch-action: none;
   filter: blur(var(--illustration-blur)) drop-shadow(0 14px 20px rgb(0 0 0 / 0.22));
   opacity: var(--illustration-opacity);
-  translate: var(--illustration-translate-x) var(--illustration-translate-y);
   transition:
     width 140ms ease,
     top 140ms ease,
@@ -355,6 +363,9 @@ label:has(input:focus-visible) {
 .illustration:hover {
   outline: 1px dashed rgb(240 168 59 / 0.9);
   outline-offset: 5px;
+}
+.illustration.is-active {
+  filter: blur(var(--illustration-blur)) drop-shadow(0 14px 20px rgb(0 0 0 / 0.28));
 }
 .illustration.is-dragging {
   cursor: grabbing;
@@ -508,10 +519,76 @@ label:has(input:focus-visible) {
     0 28px 70px rgb(59 53 36 / 0.08);
   backdrop-filter: blur(18px);
 }
+
+.surface-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  margin-top: 22px;
+  padding: 3px;
+  background: rgb(24 37 31 / 0.045);
+  border: 1px solid rgb(24 37 31 / 0.1);
+}
+
+.surface-tabs button {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 10px;
+  color: rgb(24 37 31 / 0.48);
+  background: transparent;
+  border: 0;
+  font-size: 10px;
+  font-weight: 600;
+  transition: 150ms ease;
+}
+
+.surface-tabs button:hover,
+.surface-tabs button.is-active {
+  color: var(--color-ink);
+  background: var(--color-paper);
+  box-shadow: 0 3px 12px rgb(24 37 31 / 0.08);
+}
+
+.surface-tabs i {
+  width: 5px;
+  height: 5px;
+  background: rgb(24 37 31 / 0.16);
+  border-radius: 50%;
+}
+
+.surface-tabs i.is-configured {
+  background: var(--color-citrus);
+  box-shadow: 0 0 0 3px rgb(240 168 59 / 0.12);
+}
+
+.surface-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgb(24 37 31 / 0.1);
+}
+
+.surface-heading strong,
+.surface-heading small {
+  display: block;
+}
+
+.surface-heading strong {
+  font-size: 11px;
+}
+
+.surface-heading small {
+  margin-top: 3px;
+  color: rgb(24 37 31 / 0.42);
+  font-size: 8px;
+}
 .image-setting {
-  margin-top: 23px;
+  margin-top: 0;
   padding: 15px 0 18px;
-  border-top: 1px solid rgb(24 37 31 / 0.1);
   border-bottom: 1px solid rgb(24 37 31 / 0.1);
 }
 .image-setting-heading {
@@ -649,6 +726,24 @@ label:has(input:focus-visible) {
 }
 .power-switch b {
   font-weight: 600;
+}
+
+.power-switch.is-compact {
+  gap: 6px;
+}
+
+.power-switch.is-compact > span {
+  width: 31px;
+  height: 18px;
+}
+
+.power-switch.is-compact i {
+  width: 10px;
+  height: 10px;
+}
+
+.power-switch.is-compact input:checked + span i {
+  translate: 13px;
 }
 .control-group {
   margin: 24px 0 0;

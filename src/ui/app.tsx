@@ -7,41 +7,80 @@ import {
   acceptedImageTypes,
   api,
   apiErrorCode,
+  backgroundPositionFromDrag,
   connectionDetails,
   defaultConfig,
   describeApplication,
   describeError,
   imageAdvice,
+  setAllBackgroundsEnabled,
 } from "./model.ts"
 import type {
   BackgroundConfig,
   BackgroundStatus,
+  BackgroundSurface,
   BusyAction,
   PreviewTheme,
   StatePayload,
+  SurfaceBackgroundConfig,
 } from "./types.ts"
 
-/** Owns the settings page state and coordinates the local API with the two UI panels. */
+interface IllustrationDragState {
+  animationFrame?: number
+  illustrationHeight: number
+  illustrationWidth: number
+  initialX: number
+  initialY: number
+  pendingPosition?: { x: number; y: number }
+  pointerId: number
+  pointerX: number
+  pointerY: number
+  stageHeight: number
+  stageWidth: number
+  surface: BackgroundSurface
+}
+
+type SurfaceValues<Value> = Record<BackgroundSurface, Value>
+
+const emptyImageSources = (): SurfaceValues<string | undefined> => ({
+  main: undefined,
+  sidebar: undefined,
+})
+
+const emptyImageLabels = (): SurfaceValues<string> => ({
+  main: "尚未选择图片",
+  sidebar: "尚未选择图片",
+})
+
+const imageLabel = (image: string | null) =>
+  image ? image.split("/").pop() || "当前图片" : "尚未选择图片"
+
+/** Owns the settings page state and coordinates both independent Codex surfaces. */
 export function App() {
   const [config, setConfig] = useState<BackgroundConfig>(defaultConfig)
   const [status, setStatus] = useState<BackgroundStatus | null>(null)
   const [connectionFailed, setConnectionFailed] = useState(false)
+  const [activeSurface, setActiveSurface] = useState<BackgroundSurface>("main")
   const [previewTheme, setPreviewTheme] = useState<PreviewTheme>("system")
   const [systemDark, setSystemDark] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
   )
-  const [imageSource, setImageSource] = useState<string>()
-  const [imageLabel, setImageLabel] = useState("尚未选择图片")
+  const [imageSources, setImageSources] = useState(emptyImageSources)
+  const [imageLabels, setImageLabels] = useState(emptyImageLabels)
   const [actionNote, setActionNote] = useState("")
   const [busyAction, setBusyAction] = useState<BusyAction>(null)
   const [toast, setToast] = useState<{ error: boolean; message: string }>()
   const [fileDragging, setFileDragging] = useState(false)
-  const [illustrationDragging, setIllustrationDragging] = useState(false)
+  const [illustrationDragging, setIllustrationDragging] = useState<BackgroundSurface>()
   const imageInputRef = useRef<HTMLInputElement>(null)
-  const placementStageRef = useRef<HTMLDivElement>(null)
+  const imageInputSurfaceRef = useRef<BackgroundSurface>("main")
+  const mainStageRef = useRef<HTMLDivElement>(null)
+  const sidebarStageRef = useRef<HTMLDivElement>(null)
   const toastTimerRef = useRef<number | undefined>(undefined)
   const dragDepthRef = useRef(0)
-  const illustrationDraggingRef = useRef(false)
+  const illustrationDragRef = useRef<IllustrationDragState | undefined>(undefined)
+
+  const placementStageRefs = { main: mainStageRef, sidebar: sidebarStageRef }
 
   const notify = useCallback((message: string, error = false) => {
     window.clearTimeout(toastTimerRef.current)
@@ -50,13 +89,20 @@ export function App() {
   }, [])
 
   const applyState = useCallback((payload: StatePayload) => {
+    const now = Date.now()
     setConfig(payload.config)
     setStatus(payload.status)
     setConnectionFailed(false)
-    setImageLabel(
-      payload.config.image ? payload.config.image.split("/").pop() || "当前图片" : "尚未选择图片",
-    )
-    setImageSource(payload.config.image ? `/api/image?v=${Date.now()}` : undefined)
+    setImageLabels({
+      main: imageLabel(payload.config.surfaces.main.image),
+      sidebar: imageLabel(payload.config.surfaces.sidebar.image),
+    })
+    setImageSources({
+      main: payload.config.surfaces.main.image ? `/api/surfaces/main/image?v=${now}` : undefined,
+      sidebar: payload.config.surfaces.sidebar.image
+        ? `/api/surfaces/sidebar/image?v=${now}`
+        : undefined,
+    })
   }, [])
 
   useEffect(() => {
@@ -84,44 +130,112 @@ export function App() {
   useEffect(
     () => () => {
       window.clearTimeout(toastTimerRef.current)
+      const animationFrame = illustrationDragRef.current?.animationFrame
+      if (animationFrame !== undefined) window.cancelAnimationFrame(animationFrame)
     },
     [],
   )
 
-  const updateConfig = <Key extends keyof BackgroundConfig>(
+  const updateSurfaceConfig = <Key extends keyof SurfaceBackgroundConfig>(
+    surface: BackgroundSurface,
     key: Key,
-    value: BackgroundConfig[Key],
+    value: SurfaceBackgroundConfig[Key],
   ) => {
-    setConfig((current) => ({ ...current, [key]: value }))
+    setConfig((current) => ({
+      ...current,
+      surfaces: {
+        ...current.surfaces,
+        [surface]: { ...current.surfaces[surface], [key]: value },
+      },
+    }))
   }
 
-  const updatePosition = (illustrationX: number, illustrationY: number) => {
-    setConfig((current) => ({ ...current, illustrationX, illustrationY }))
+  const updatePosition = (
+    surface: BackgroundSurface,
+    illustrationX: number,
+    illustrationY: number,
+  ) => {
+    setConfig((current) => ({
+      ...current,
+      surfaces: {
+        ...current.surfaces,
+        [surface]: { ...current.surfaces[surface], illustrationX, illustrationY },
+      },
+    }))
   }
 
-  const positionFromPointer = (event: ReactPointerEvent<HTMLElement>) => {
-    const bounds = placementStageRef.current?.getBoundingClientRect()
-    if (!bounds) return
-    const x = Math.max(0, Math.min(100, ((event.clientX - bounds.left) / bounds.width) * 100))
-    const y = Math.max(0, Math.min(100, ((event.clientY - bounds.top) / bounds.height) * 100))
-    updatePosition(Math.round(x), Math.round(y))
+  const positionForPointer = (
+    drag: IllustrationDragState,
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => ({
+    x: backgroundPositionFromDrag({
+      illustrationLength: drag.illustrationWidth,
+      initialPosition: drag.initialX,
+      pointerDelta: event.clientX - drag.pointerX,
+      stageLength: drag.stageWidth,
+    }),
+    y: backgroundPositionFromDrag({
+      illustrationLength: drag.illustrationHeight,
+      initialPosition: drag.initialY,
+      pointerDelta: event.clientY - drag.pointerY,
+      stageLength: drag.stageHeight,
+    }),
+  })
+
+  const flushIllustrationPosition = () => {
+    const drag = illustrationDragRef.current
+    if (!drag) return
+    drag.animationFrame = undefined
+    const position = drag.pendingPosition
+    if (!position) return
+    drag.pendingPosition = undefined
+    updatePosition(drag.surface, position.x, position.y)
   }
 
-  const startIllustrationDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const startIllustrationDrag = (
+    surface: BackgroundSurface,
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
     event.preventDefault()
-    illustrationDraggingRef.current = true
-    setIllustrationDragging(true)
+    const stageBounds = placementStageRefs[surface].current?.getBoundingClientRect()
+    if (!stageBounds) return
+    const illustrationBounds = event.currentTarget.getBoundingClientRect()
+    const surfaceConfig = config.surfaces[surface]
+    setActiveSurface(surface)
+    illustrationDragRef.current = {
+      illustrationHeight: illustrationBounds.height,
+      illustrationWidth: illustrationBounds.width,
+      initialX: surfaceConfig.illustrationX,
+      initialY: surfaceConfig.illustrationY,
+      pointerId: event.pointerId,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      stageHeight: stageBounds.height,
+      stageWidth: stageBounds.width,
+      surface,
+    }
+    setIllustrationDragging(surface)
     event.currentTarget.setPointerCapture(event.pointerId)
-    positionFromPointer(event)
   }
 
   const moveIllustration = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (illustrationDraggingRef.current) positionFromPointer(event)
+    const drag = illustrationDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    drag.pendingPosition = positionForPointer(drag, event)
+    if (drag.animationFrame === undefined) {
+      drag.animationFrame = window.requestAnimationFrame(flushIllustrationPosition)
+    }
   }
 
   const finishIllustrationDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    illustrationDraggingRef.current = false
-    setIllustrationDragging(false)
+    const drag = illustrationDragRef.current
+    if (drag?.pointerId === event.pointerId) {
+      if (drag.animationFrame !== undefined) window.cancelAnimationFrame(drag.animationFrame)
+      const position = positionForPointer(drag, event)
+      updatePosition(drag.surface, position.x, position.y)
+      illustrationDragRef.current = undefined
+    }
+    setIllustrationDragging(undefined)
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
@@ -131,21 +245,29 @@ export function App() {
     event.preventDefault()
     setBusyAction("save")
     try {
-      const {
-        illustrationBlur,
-        illustrationOpacity,
-        illustrationSize,
-        illustrationX,
-        illustrationY,
-      } = config
-      const payload = await api<StatePayload>("/api/config", {
-        method: "PUT",
-        body: JSON.stringify({
+      const appearanceSettings = (surface: BackgroundSurface) => {
+        const {
           illustrationBlur,
           illustrationOpacity,
           illustrationSize,
           illustrationX,
           illustrationY,
+        } = config.surfaces[surface]
+        return {
+          illustrationBlur,
+          illustrationOpacity,
+          illustrationSize,
+          illustrationX,
+          illustrationY,
+        }
+      }
+      const payload = await api<StatePayload>("/api/config", {
+        method: "PUT",
+        body: JSON.stringify({
+          surfaces: {
+            main: appearanceSettings("main"),
+            sidebar: appearanceSettings("sidebar"),
+          },
         }),
       })
       applyState(payload)
@@ -160,22 +282,52 @@ export function App() {
   }
 
   const applyEnabled = async (enabled: boolean) => {
-    const previousEnabled = config.enabled
-    setConfig((current) => ({ ...current, enabled }))
+    const previousEnabled = {
+      global: config.enabled,
+      main: config.surfaces.main.enabled,
+      sidebar: config.surfaces.sidebar.enabled,
+    }
+    setConfig((current) => setAllBackgroundsEnabled(current, enabled))
     setBusyAction("toggle")
     try {
       const payload = await api<StatePayload>("/api/config", {
         method: "PUT",
         body: JSON.stringify({ enabled }),
       })
-      setConfig((current) => ({ ...current, enabled: payload.config.enabled }))
-      setStatus(payload.status)
-      setConnectionFailed(false)
+      applyState(payload)
       const message = describeApplication(payload.application)
       setActionNote(message)
       notify(message)
     } catch (error) {
-      setConfig((current) => ({ ...current, enabled: previousEnabled }))
+      setConfig((current) => ({
+        ...current,
+        enabled: previousEnabled.global,
+        surfaces: {
+          main: { ...current.surfaces.main, enabled: previousEnabled.main },
+          sidebar: { ...current.surfaces.sidebar, enabled: previousEnabled.sidebar },
+        },
+      }))
+      notify(describeError(error), true)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  const applySurfaceEnabled = async (surface: BackgroundSurface, enabled: boolean) => {
+    const previousEnabled = config.surfaces[surface].enabled
+    updateSurfaceConfig(surface, "enabled", enabled)
+    setBusyAction("surface-toggle")
+    try {
+      const payload = await api<StatePayload>("/api/config", {
+        method: "PUT",
+        body: JSON.stringify({ surfaces: { [surface]: { enabled } } }),
+      })
+      applyState(payload)
+      const message = describeApplication(payload.application)
+      setActionNote(message)
+      notify(message)
+    } catch (error) {
+      updateSurfaceConfig(surface, "enabled", previousEnabled)
       notify(describeError(error), true)
     } finally {
       setBusyAction(null)
@@ -216,7 +368,7 @@ export function App() {
     }
   }
 
-  const uploadImage = async (file?: File) => {
+  const uploadImage = async (surface: BackgroundSurface, file?: File) => {
     if (!file) return
     if (file.size === 0) {
       notify("所选图片为空，请重新选择。", true)
@@ -231,14 +383,14 @@ export function App() {
       return
     }
 
-    const previousImageSource = imageSource
-    const previousImageLabel = imageLabel
+    const previousImageSource = imageSources[surface]
+    const previousImageLabel = imageLabels[surface]
     const temporaryUrl = URL.createObjectURL(file)
-    setImageSource(temporaryUrl)
-    setImageLabel(file.name)
-    notify("正在把人物插图放入本地布景台……")
+    setImageSources((current) => ({ ...current, [surface]: temporaryUrl }))
+    setImageLabels((current) => ({ ...current, [surface]: file.name }))
+    notify(`正在更新${surface === "main" ? "主面板" : "侧边栏"}人物插图……`)
     try {
-      const payload = await api<StatePayload>("/api/image", {
+      const payload = await api<StatePayload>(`/api/surfaces/${surface}/image`, {
         method: "POST",
         body: file,
         headers: { "content-type": file.type },
@@ -248,8 +400,8 @@ export function App() {
       setActionNote(message)
       notify(`人物插图已更换。${message}`)
     } catch (error) {
-      setImageSource(previousImageSource)
-      setImageLabel(previousImageLabel)
+      setImageSources((current) => ({ ...current, [surface]: previousImageSource }))
+      setImageLabels((current) => ({ ...current, [surface]: previousImageLabel }))
       notify(describeError(error), true)
     } finally {
       URL.revokeObjectURL(temporaryUrl)
@@ -258,12 +410,15 @@ export function App() {
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget
-    void uploadImage(input.files?.[0]).finally(() => {
+    void uploadImage(imageInputSurfaceRef.current, input.files?.[0]).finally(() => {
       input.value = ""
     })
   }
 
-  const chooseImage = () => imageInputRef.current?.click()
+  const chooseImage = () => {
+    imageInputSurfaceRef.current = activeSurface
+    imageInputRef.current?.click()
+  }
 
   const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -283,11 +438,14 @@ export function App() {
     event.preventDefault()
     dragDepthRef.current = 0
     setFileDragging(false)
-    void uploadImage(event.dataTransfer.files[0])
+    void uploadImage(activeSurface, event.dataTransfer.files[0])
   }
 
+  const activeConfig = config.surfaces[activeSurface]
   const connection = connectionDetails(status, connectionFailed)
-  const advice = imageAdvice(imageLabel === "尚未选择图片" ? null : imageLabel)
+  const advice = imageAdvice(
+    imageLabels[activeSurface] === "尚未选择图片" ? null : imageLabels[activeSurface],
+  )
   const effectiveTheme = previewTheme === "system" ? (systemDark ? "dark" : "light") : previewTheme
 
   return (
@@ -312,11 +470,13 @@ export function App() {
 
         <div className="workspace-layout grid gap-8 py-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10 xl:gap-14 xl:py-9">
           <PreviewSection
+            activeSurface={activeSurface}
             config={config}
             effectiveTheme={effectiveTheme}
             fileDragging={fileDragging}
             illustrationDragging={illustrationDragging}
-            imageSource={imageSource}
+            imageSources={imageSources}
+            onActiveSurfaceChange={setActiveSurface}
             onChooseImage={chooseImage}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
@@ -325,23 +485,27 @@ export function App() {
             onMoveIllustration={moveIllustration}
             onPreviewThemeChange={setPreviewTheme}
             onStartIllustrationDrag={startIllustrationDrag}
-            placementStageRef={placementStageRef}
+            placementStageRefs={placementStageRefs}
             previewTheme={previewTheme}
           />
           <ControlPanel
             actionNote={actionNote}
+            activeSurface={activeSurface}
             advice={advice}
             busyAction={busyAction}
             config={config}
-            imageLabel={imageLabel}
-            imageSource={imageSource}
+            imageLabel={imageLabels[activeSurface]}
+            imageSource={imageSources[activeSurface]}
+            onActiveSurfaceChange={setActiveSurface}
             onChooseImage={chooseImage}
-            onConfigChange={updateConfig}
+            onConfigChange={(key, value) => updateSurfaceConfig(activeSurface, key, value)}
             onEnabledChange={applyEnabled}
-            onPositionChange={updatePosition}
+            onPositionChange={(x, y) => updatePosition(activeSurface, x, y)}
             onSave={saveSettings}
             onStart={startBackground}
+            onSurfaceEnabledChange={(enabled) => applySurfaceEnabled(activeSurface, enabled)}
             status={status}
+            surfaceConfig={activeConfig}
           />
         </div>
       </main>
