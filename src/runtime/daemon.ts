@@ -6,7 +6,7 @@ import { promisify } from "node:util"
 import { isCdpAvailable } from "./cdp.ts"
 import { configuredBackgroundSurfaces, readConfig, resolveDataDirectory } from "./config.ts"
 import { buildBackgroundCss } from "./css.ts"
-import { TargetSessionManager } from "./injector.ts"
+import { removeFromAllTargets, TargetSessionManager } from "./injector.ts"
 import { findCodexProcessId, inspectCdpPort } from "./macos.ts"
 import type { DataDirectoryOptions, SpawnImplementation } from "./types.ts"
 import { errorCode, errorMessage } from "./types.ts"
@@ -243,6 +243,14 @@ export async function runDaemon(options: DaemonOptions = {}) {
             )}\n`,
             { mode: 0o600 },
           )
+        } else if (targetSessions) {
+          const removalPort = sessionPort || config.port
+          targetSessions.close()
+          targetSessions = undefined
+          sessionPort = undefined
+          cachedConfig = ""
+          cachedCss = ""
+          await removeFromAllTargets({ port: removalPort }).catch(() => undefined)
         }
       } catch (error) {
         await appendFile(paths.log, `${new Date().toISOString()} ${errorMessage(error)}\n`, {
