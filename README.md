@@ -16,7 +16,7 @@ Once published, the complete user flow is one command:
 npx codex-skin
 ```
 
-The command opens the light visual settings page, starts Codex with a loopback-only Chrome DevTools Protocol port, injects the configured character layer, and keeps new windows synchronized. The background daemon exits when Codex exits.
+The command opens the light visual settings page, starts Codex with a loopback-only Chrome DevTools Protocol port, injects the configured character layers, and keeps new windows synchronized. The background daemon exits when Codex exits.
 
 If no character image has been configured yet, the settings page opens first. Choose an image and select **启动背景模式**.
 
@@ -26,8 +26,9 @@ The local settings page supports:
 
 - PNG, JPEG, WebP, GIF, and AVIF images up to 25 MB
 - preserved PNG/WebP alpha transparency
-- direct drag positioning and X/Y sliders
-- character size, opacity, and edge blur
+- independent main-panel and sidebar images and enable switches
+- direct drag positioning and X/Y sliders for each surface
+- per-surface character size, opacity, and edge blur
 - immediate application to connected Codex windows
 
 Settings and uploaded images remain in `~/.config/codex-skin/`. Set `CODEX_SKIN_HOME` to use a different location. The legacy `CODEX_BACKGROUND_HOME` override remains accepted for existing local setups. The settings server binds only to `127.0.0.1`, uses a random session token, and shuts down after 30 minutes without a request.
@@ -51,6 +52,7 @@ Terminal-based appearance changes remain available for automation:
 
 ```bash
 npx codex-skin configure \
+  --surface main \
   --image "/absolute/path/to/character.png" \
   --illustration-size 360 \
   --x 82 \
@@ -58,6 +60,21 @@ npx codex-skin configure \
   --opacity 0.72 \
   --blur 0
 ```
+
+Configure the sidebar independently; both surfaces can stay enabled at the same time:
+
+```bash
+npx codex-skin configure \
+  --surface sidebar \
+  --enable-surface \
+  --image "/absolute/path/to/sidebar-character.webp" \
+  --illustration-size 240 \
+  --x 50 \
+  --y 80 \
+  --opacity 0.24
+```
+
+Existing single-surface configurations migrate to the main panel automatically.
 
 ## Important lifecycle detail
 
