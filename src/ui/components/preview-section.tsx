@@ -1,7 +1,7 @@
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent, RefObject } from "react"
 
 import { axisAnchor } from "../../shared/background-position.ts"
-import { backgroundSurfaceIsEnabled, previewThemes } from "../model.ts"
+import { backgroundSurfaceIsEnabled, backgroundSurfaces, previewThemes } from "../model.ts"
 import type {
   BackgroundConfig,
   BackgroundSurface,
@@ -138,7 +138,7 @@ export function PreviewSection({
   placementStageRefs,
   previewTheme,
 }: PreviewSectionProps) {
-  const activeLabel = activeSurface === "main" ? "主面板" : "侧边栏"
+  const activeLabel = backgroundSurfaces[activeSurface].label
   const hasVisibleImage = (["main", "sidebar"] as const).some(
     (surface) => backgroundSurfaceIsEnabled(config, surface) && imageSources[surface],
   )

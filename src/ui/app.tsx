@@ -3,11 +3,13 @@ import type { ChangeEvent, DragEvent, FormEvent, PointerEvent as ReactPointerEve
 
 import { ControlPanel } from "./components/control-panel.tsx"
 import { PreviewSection } from "./components/preview-section.tsx"
+import { SurfaceSettingsPanel } from "./components/surface-settings-panel.tsx"
 import {
   acceptedImageTypes,
   api,
   apiErrorCode,
   backgroundPositionFromDrag,
+  backgroundSurfaces,
   connectionDetails,
   defaultConfig,
   describeApplication,
@@ -388,7 +390,7 @@ export function App() {
     const temporaryUrl = URL.createObjectURL(file)
     setImageSources((current) => ({ ...current, [surface]: temporaryUrl }))
     setImageLabels((current) => ({ ...current, [surface]: file.name }))
-    notify(`正在更新${surface === "main" ? "主面板" : "侧边栏"}人物插图……`)
+    notify(`正在更新${backgroundSurfaces[surface].label}人物插图……`)
     try {
       const payload = await api<StatePayload>(`/api/surfaces/${surface}/image`, {
         method: "POST",
@@ -442,6 +444,10 @@ export function App() {
   }
 
   const activeConfig = config.surfaces[activeSurface]
+  const activeSurfaceLabel = backgroundSurfaces[activeSurface].label
+  const canStartBackground = Boolean(
+    config.enabled && status?.imageReadable && !status.cdpAvailable,
+  )
   const connection = connectionDetails(status, connectionFailed)
   const advice = imageAdvice(
     imageLabels[activeSurface] === "尚未选择图片" ? null : imageLabels[activeSurface],
@@ -489,24 +495,30 @@ export function App() {
             previewTheme={previewTheme}
           />
           <ControlPanel
-            actionNote={actionNote}
             activeSurface={activeSurface}
-            advice={advice}
             busyAction={busyAction}
             config={config}
-            imageLabel={imageLabels[activeSurface]}
-            imageSource={imageSources[activeSurface]}
             onActiveSurfaceChange={setActiveSurface}
-            onChooseImage={chooseImage}
-            onConfigChange={(key, value) => updateSurfaceConfig(activeSurface, key, value)}
             onEnabledChange={applyEnabled}
-            onPositionChange={(x, y) => updatePosition(activeSurface, x, y)}
-            onSave={saveSettings}
-            onStart={startBackground}
-            onSurfaceEnabledChange={(enabled) => applySurfaceEnabled(activeSurface, enabled)}
-            status={status}
-            surfaceConfig={activeConfig}
-          />
+          >
+            <SurfaceSettingsPanel
+              actionNote={actionNote}
+              advice={advice}
+              busyAction={busyAction}
+              canStartBackground={canStartBackground}
+              config={activeConfig}
+              imageLabel={imageLabels[activeSurface]}
+              imageSource={imageSources[activeSurface]}
+              label={activeSurfaceLabel}
+              onChooseImage={chooseImage}
+              onConfigChange={(key, value) => updateSurfaceConfig(activeSurface, key, value)}
+              onEnabledChange={(enabled) => applySurfaceEnabled(activeSurface, enabled)}
+              onPositionChange={(x, y) => updatePosition(activeSurface, x, y)}
+              onSave={saveSettings}
+              onStart={startBackground}
+              surface={activeSurface}
+            />
+          </ControlPanel>
         </div>
       </main>
 

@@ -39,10 +39,10 @@ export const defaultConfig = {
   },
 } as const satisfies StatePayload["config"]
 
-export const backgroundSurfaces = [
-  { label: "主面板", value: "main" },
-  { label: "侧边栏", value: "sidebar" },
-] as const satisfies ReadonlyArray<{ label: string; value: BackgroundSurface }>
+export const backgroundSurfaces = {
+  main: { label: "主面板", value: "main" },
+  sidebar: { label: "侧边栏", value: "sidebar" },
+} as const satisfies Record<BackgroundSurface, { label: string; value: BackgroundSurface }>
 
 export const previewThemes = [
   { label: "系统", value: "system" },
