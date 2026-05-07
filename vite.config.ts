@@ -1,3 +1,4 @@
+import babel from "@rolldown/plugin-babel"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite-plus"
@@ -38,7 +39,13 @@ const config = {
   staged: {
     "*": "vp check --fix",
   },
-  plugins: [react() as unknown as PluginOption, tailwindcss() as unknown as PluginOption],
+  plugins: [
+    babel({
+      plugins: [["@locator/babel-jsx/dist", { env: "development" }]],
+    }) as unknown as PluginOption,
+    react() as unknown as PluginOption,
+    tailwindcss() as unknown as PluginOption,
+  ],
   build: {
     emptyOutDir: true,
     outDir: "dist/ui",
