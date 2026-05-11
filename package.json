@@ -1,6 +1,6 @@
 {
   "name": "codex-skin",
-  "version": "0.2.0",
+  "version": "1.0.0-beta.0",
   "description": "An unofficial local appearance companion for the Codex desktop app.",
   "keywords": [
     "codex",
@@ -8,8 +8,16 @@
     "theme",
     "wallpaper"
   ],
+  "homepage": "https://github.com/cixiangtao/codex-skin#readme",
+  "bugs": {
+    "url": "https://github.com/cixiangtao/codex-skin/issues"
+  },
   "license": "MIT",
   "author": "anys",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cixiangtao/codex-skin.git"
+  },
   "bin": {
     "codex-skin": "./dist/bin/codex-skin.js"
   },
