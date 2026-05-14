@@ -19,7 +19,7 @@
     "url": "git+https://github.com/cixiangtao/codex-skin.git"
   },
   "bin": {
-    "codex-skin": "./dist/bin/codex-skin.js"
+    "codex-skin": "dist/bin/codex-skin.js"
   },
   "files": [
     "dist"

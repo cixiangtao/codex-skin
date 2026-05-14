@@ -9,7 +9,7 @@ interface PackageManifest {
 const manifest = JSON.parse(await readFile("package.json", "utf8")) as PackageManifest
 const entryPath = manifest.bin?.["codex-skin"]
 
-if (entryPath !== "./dist/bin/codex-skin.js") {
+if (entryPath !== "dist/bin/codex-skin.js") {
   throw new Error("The npm binary must point to the compiled JavaScript entry.")
 }
 if (!manifest.engines?.node || manifest.engines.bun) {
