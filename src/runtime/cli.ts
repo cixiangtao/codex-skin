@@ -22,6 +22,7 @@ import {
   listenSettingsServer,
   openSettingsPage,
   runSettingsServerDaemon,
+  stopSettingsServer,
 } from "./settings-server.ts"
 import type { BackgroundConfig, BackgroundSurface } from "./types.ts"
 
@@ -88,7 +89,7 @@ Usage:
   codex-skin configure [options]   Update settings from the terminal
   codex-skin doctor                Check the local runtime
   codex-skin verify [--reload]     Verify the visible background
-  codex-skin stop                  Remove the background
+  codex-skin stop                  Stop background and settings services
 
 Options:
   --image PATH                 PNG, JPEG, WebP, GIF, or AVIF up to 25 MB
@@ -352,11 +353,20 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
     }
     case "stop": {
       const config = await readConfig()
-      const pid = await stopDaemon()
+      const [daemonPid, settingsServerPid] = await Promise.all([stopDaemon(), stopSettingsServer()])
       if ((await configuredCdpIsReady(config)).httpReady) {
         await removeFromAllTargets({ port: config.port })
       }
-      io.log(pid ? `Stopped background daemon ${pid}.` : "Background daemon was not running.")
+      io.log(
+        daemonPid
+          ? `Stopped background daemon ${daemonPid}.`
+          : "Background daemon was not running.",
+      )
+      io.log(
+        settingsServerPid
+          ? `Stopped settings server ${settingsServerPid}.`
+          : "Settings server was not running.",
+      )
       return 0
     }
     case "enable": {

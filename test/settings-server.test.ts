@@ -6,7 +6,79 @@ import path from "node:path"
 import { test } from "vitest"
 
 import { readConfig, writeConfig } from "../src/runtime/config.ts"
-import { listenSettingsServer } from "../src/runtime/settings-server.ts"
+import {
+  listenSettingsServer,
+  settingsServerIdentityMatches,
+  stopSettingsServer,
+} from "../src/runtime/settings-server.ts"
+
+test("settings server identity rejects a recycled pid", () => {
+  const state = {
+    pid: 42,
+    port: 4179,
+    process: {
+      command: "/opt/node /tmp/codex-skin.js settings-server",
+      startedAt: "Mon Jul 16 09:00:00 2026",
+    },
+    startedAt: "2026-07-16T01:00:00.000Z",
+    token: "test-token",
+  }
+
+  assert.equal(settingsServerIdentityMatches(state, state.process), true)
+  assert.equal(
+    settingsServerIdentityMatches(state, {
+      ...state.process,
+      startedAt: "Mon Jul 16 10:00:00 2026",
+    }),
+    false,
+  )
+  assert.equal(
+    settingsServerIdentityMatches(state, {
+      command: "/opt/node /tmp/unrelated.js settings-server",
+      startedAt: state.process.startedAt,
+    }),
+    false,
+  )
+})
+
+test("stopSettingsServer signals the verified server and removes its state", async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-stop-"))
+  const processIdentity = {
+    command: "/opt/node /tmp/codex-skin.js settings-server",
+    startedAt: "Mon Jul 16 09:00:00 2026",
+  }
+  await writeFile(
+    path.join(dataDirectory, "settings-server.json"),
+    JSON.stringify({
+      pid: 42,
+      port: 4179,
+      process: processIdentity,
+      startedAt: "2026-07-16T01:00:00.000Z",
+      token: "test-token",
+    }),
+  )
+  const signals: Array<[number, NodeJS.Signals | 0]> = []
+
+  try {
+    assert.equal(
+      await stopSettingsServer({
+        dataDirectory,
+        inspectProcessImpl: async () => processIdentity,
+        killProcessImpl: (pid, signal) => {
+          signals.push([pid, signal])
+          return true
+        },
+      }),
+      42,
+    )
+    assert.deepEqual(signals, [[42, "SIGTERM"]])
+    await assert.rejects(() => access(path.join(dataDirectory, "settings-server.json")), {
+      code: "ENOENT",
+    })
+  } finally {
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})
 
 async function authenticatedSession(url: string) {
   const bootstrap = await fetch(url, { redirect: "manual" })

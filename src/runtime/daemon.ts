@@ -1,22 +1,16 @@
-import { execFile, spawn } from "node:child_process"
+import { spawn } from "node:child_process"
 import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
-import { promisify } from "node:util"
 
 import { isCdpAvailable } from "./cdp.ts"
 import { configuredBackgroundSurfaces, readConfig, resolveDataDirectory } from "./config.ts"
 import { buildBackgroundCss } from "./css.ts"
 import { removeFromAllTargets, TargetSessionManager } from "./injector.ts"
 import { findCodexProcessId, inspectCdpPort } from "./macos.ts"
+import { inspectProcess } from "./process.ts"
+import type { ProcessIdentity } from "./process.ts"
 import type { DataDirectoryOptions, SpawnImplementation } from "./types.ts"
 import { errorCode, errorMessage } from "./types.ts"
-
-const execFileAsync = promisify(execFile)
-
-interface ProcessIdentity {
-  command: string
-  startedAt: string
-}
 
 interface DaemonIdentity extends ProcessIdentity {
   entryPath: string
@@ -37,20 +31,6 @@ function runtimePaths(options: DataDirectoryOptions = {}) {
     process: path.join(dataDirectory, "daemon-process.json"),
     log: path.join(dataDirectory, "daemon.log"),
     state: path.join(dataDirectory, "daemon-state.json"),
-  }
-}
-
-async function inspectProcess(pid: number): Promise<ProcessIdentity | null> {
-  if (!Number.isInteger(pid) || pid <= 0) return null
-  try {
-    const [{ stdout: startedAt }, { stdout: command }] = await Promise.all([
-      execFileAsync("ps", ["-p", String(pid), "-o", "lstart="]),
-      execFileAsync("ps", ["-p", String(pid), "-o", "command="]),
-    ])
-    if (!startedAt.trim() || !command.trim()) return null
-    return { command: command.trim(), startedAt: startedAt.trim() }
-  } catch {
-    return null
   }
 }
 

@@ -16,6 +16,8 @@ import {
 import { readConfig, resolveDataDirectory, writeConfig } from "./config.ts"
 import { imageFileToDataUrl } from "./css.ts"
 import { readDaemonPid } from "./daemon.ts"
+import { inspectProcess } from "./process.ts"
+import type { ProcessIdentity } from "./process.ts"
 import type {
   BackgroundConfig,
   BackgroundConfigInput,
@@ -58,7 +60,14 @@ const CONTENT_TYPES = new Map([
   [".svg", "image/svg+xml"],
 ])
 
-interface SettingsOptions extends DataDirectoryOptions {
+type KillProcess = (pid: number, signal: NodeJS.Signals | 0) => boolean
+
+interface SettingsProcessOptions extends DataDirectoryOptions {
+  inspectProcessImpl?: (pid: number) => Promise<ProcessIdentity | null>
+  killProcessImpl?: KillProcess
+}
+
+interface SettingsOptions extends SettingsProcessOptions {
   authenticatedRedirectUrl?: string
   entryPath: string
   idleTimeoutMs?: number
@@ -73,6 +82,7 @@ interface SettingsOptions extends DataDirectoryOptions {
 interface SettingsServerState {
   pid: number
   port: number
+  process?: ProcessIdentity
   startedAt: string
   token: string
 }
@@ -84,14 +94,13 @@ function runtimePath(options: DataDirectoryOptions = {}) {
   )
 }
 
-function processIsAlive(pid: number) {
-  if (!Number.isInteger(pid) || pid <= 0) return false
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch {
-    return false
-  }
+export function settingsServerIdentityMatches(
+  state: SettingsServerState,
+  actual: ProcessIdentity | null,
+) {
+  if (!actual || !/codex-skin\.(?:js|ts).*\bsettings-server\b/.test(actual.command)) return false
+  if (!state.process) return true
+  return actual.command === state.process.command && actual.startedAt === state.process.startedAt
 }
 
 function securityHeaders(response: ServerResponse) {
@@ -424,10 +433,16 @@ export async function listenSettingsServer(options: SettingsOptions) {
 }
 
 export async function runSettingsServerDaemon(options: SettingsOptions) {
+  const processIdentity = await (options.inspectProcessImpl || inspectProcess)(process.pid)
+  if (!processIdentity) throw new Error("Unable to verify the settings server process.")
   const instance = await listenSettingsServer(options)
   const statePath = runtimePath({ dataDirectory: instance.dataDirectory })
   await mkdir(instance.dataDirectory, { recursive: true, mode: 0o700 })
-  await writeFile(statePath, `${JSON.stringify(instance.state, null, 2)}\n`, { mode: 0o600 })
+  await writeFile(
+    statePath,
+    `${JSON.stringify({ ...instance.state, process: processIdentity }, null, 2)}\n`,
+    { mode: 0o600 },
+  )
 
   const close = () => instance.server.close()
   process.once("SIGTERM", close)
@@ -438,15 +453,24 @@ export async function runSettingsServerDaemon(options: SettingsOptions) {
 }
 
 export async function readSettingsServerState(
-  options: DataDirectoryOptions = {},
+  options: SettingsProcessOptions = {},
 ): Promise<SettingsServerState | null> {
   try {
     const state = JSON.parse(await readFile(runtimePath(options), "utf8")) as SettingsServerState
-    return processIsAlive(state.pid) ? state : null
+    const actual = await (options.inspectProcessImpl || inspectProcess)(state.pid)
+    return settingsServerIdentityMatches(state, actual) ? state : null
   } catch (error) {
     if (errorCode(error) === "ENOENT" || error instanceof SyntaxError) return null
     throw error
   }
+}
+
+/** Stops the detached settings server without signaling an unrelated recycled PID. */
+export async function stopSettingsServer(options: SettingsProcessOptions = {}) {
+  const state = await readSettingsServerState(options)
+  if (state) (options.killProcessImpl || process.kill)(state.pid, "SIGTERM")
+  await rm(runtimePath(options), { force: true })
+  return state?.pid ?? null
 }
 
 export async function ensureSettingsServer({
