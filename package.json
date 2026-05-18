@@ -45,6 +45,7 @@
     "verify:package": "bun scripts/verify-package.ts"
   },
   "dependencies": {
+    "picocolors": "^1.1.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

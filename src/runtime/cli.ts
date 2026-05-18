@@ -1,6 +1,9 @@
 import { access } from "node:fs/promises"
 import path from "node:path"
 
+import pc from "picocolors"
+
+import packageManifest from "../../package.json" with { type: "json" }
 import {
   configuredCdpIsReady,
   injectConfiguredBackground,
@@ -48,9 +51,18 @@ interface CommandIo {
 }
 
 interface CliOptions {
+  colors?: typeof pc
   confirmCodexRestartImpl?: () => Promise<boolean>
   entryPath?: string
   io?: CommandIo
+  version?: string
+}
+
+interface RuntimeSummary {
+  cdpPort: number
+  daemonPid?: number | null
+  settingsPid: number
+  settingsPort: number
 }
 
 const OPTION_NAMES = new Map<string, CommandOption>([
@@ -80,6 +92,7 @@ const BOOLEAN_OPTIONS = new Set([
 ])
 const DEVELOPMENT_API_PORT = 4179
 const DEVELOPMENT_UI_URL = "http://127.0.0.1:4178/"
+const PACKAGE_VERSION = packageManifest.version
 
 const HELP = `Codex Skin
 
@@ -178,11 +191,40 @@ async function configure(options: Record<string, string | boolean>, io: CommandI
   io.log(printableConfig(config))
 }
 
-async function openSettings(entryPath: string, io: CommandIo) {
+async function openSettings(entryPath: string) {
   const server = await ensureSettingsServer({ entryPath })
   openSettingsPage(server.url)
-  io.log(`Opened settings at http://127.0.0.1:${server.port}/`)
   return server
+}
+
+/** Formats the copyable runtime details shown after opening the settings interface. */
+export function formatRuntimeSummary(
+  { cdpPort, daemonPid, settingsPid, settingsPort }: RuntimeSummary,
+  { colors = pc, version = PACKAGE_VERSION }: Pick<CliOptions, "colors" | "version"> = {},
+) {
+  const label = (value: string) => colors.bold(colors.white(value.padEnd(10)))
+  const running = colors.green("running")
+  const backgroundStatus = daemonPid
+    ? `${running} ${colors.dim("·")} PID ${colors.cyan(daemonPid)}`
+    : colors.yellow("waiting to start")
+  const stopCommand = `npx codex-skin@${version} stop`
+
+  return [
+    `${colors.bold(colors.magenta("Codex Skin"))} ${colors.dim(`v${version}`)}`,
+    "",
+    `  ${label("Settings")} ${running} ${colors.dim("·")} PID ${colors.cyan(settingsPid)} ${colors.dim("·")} ${colors.cyan(`127.0.0.1:${settingsPort}`)}`,
+    `  ${label("Background")} ${backgroundStatus}`,
+    `  ${label("Codex CDP")} ${colors.cyan(`127.0.0.1:${cdpPort}`)}`,
+    `  ${label("Stop")} ${colors.yellow(stopCommand)}`,
+  ].join("\n")
+}
+
+function logRuntimeSummary(
+  io: CommandIo,
+  summary: RuntimeSummary,
+  options: Pick<CliOptions, "colors" | "version">,
+) {
+  io.log(formatRuntimeSummary(summary, options))
 }
 
 async function runDevelopmentServer(entryPath: string, io: CommandIo) {
@@ -205,7 +247,17 @@ async function runDevelopmentServer(entryPath: string, io: CommandIo) {
 async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
   const config = await readConfig()
   if (configuredBackgroundSurfaces(config).length === 0) {
-    await openSettings(entryPath, io)
+    const server = await openSettings(entryPath)
+    logRuntimeSummary(
+      io,
+      {
+        cdpPort: config.port,
+        daemonPid: await readDaemonPid(),
+        settingsPid: server.pid,
+        settingsPort: server.port,
+      },
+      options,
+    )
     io.log("Choose a character image in the settings page to continue.")
     return 0
   }
@@ -222,8 +274,18 @@ async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
     }
   }
 
-  await openSettings(entryPath, io)
+  const server = await openSettings(entryPath)
   const result = await startConfiguredBackground(config, { entryPath, restartRunningCodex })
+  logRuntimeSummary(
+    io,
+    {
+      cdpPort: result.port ?? config.port,
+      daemonPid: result.daemon?.pid,
+      settingsPid: server.pid,
+      settingsPort: server.port,
+    },
+    options,
+  )
   io.log(
     `Applied the background to ${result.targets ?? 0} Codex window${result.targets === 1 ? "" : "s"}.`,
   )
@@ -314,7 +376,23 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
       await configure(commandOptions, io)
       return 0
     case "settings":
-      await openSettings(entryPath, io)
+      {
+        const [config, server, daemonPid] = await Promise.all([
+          readConfig(),
+          openSettings(entryPath),
+          readDaemonPid(),
+        ])
+        logRuntimeSummary(
+          io,
+          {
+            cdpPort: config.port,
+            daemonPid,
+            settingsPid: server.pid,
+            settingsPort: server.port,
+          },
+          options,
+        )
+      }
       return 0
     case "show":
       io.log(printableConfig(await readConfig()))

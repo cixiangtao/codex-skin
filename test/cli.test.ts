@@ -1,8 +1,54 @@
 import assert from "node:assert/strict"
 
+import pc from "picocolors"
 import { test } from "vitest"
 
-import { isSupportedNodeVersion, parseArguments, verificationChecks } from "../src/runtime/cli.ts"
+import {
+  formatRuntimeSummary,
+  isSupportedNodeVersion,
+  parseArguments,
+  verificationChecks,
+} from "../src/runtime/cli.ts"
+
+test("formatRuntimeSummary shows version, ports, processes, and the stop command", () => {
+  const summary = formatRuntimeSummary(
+    {
+      cdpPort: 9229,
+      daemonPid: 456,
+      settingsPid: 123,
+      settingsPort: 4179,
+    },
+    { colors: pc.createColors(false), version: "1.2.3-beta.4" },
+  )
+
+  assert.equal(
+    summary,
+    [
+      "Codex Skin v1.2.3-beta.4",
+      "",
+      "  Settings   running · PID 123 · 127.0.0.1:4179",
+      "  Background running · PID 456",
+      "  Codex CDP  127.0.0.1:9229",
+      "  Stop       npx codex-skin@1.2.3-beta.4 stop",
+    ].join("\n"),
+  )
+})
+
+test("formatRuntimeSummary uses terminal colors and explains a pending background", () => {
+  const summary = formatRuntimeSummary(
+    {
+      cdpPort: 9229,
+      daemonPid: null,
+      settingsPid: 123,
+      settingsPort: 4179,
+    },
+    { colors: pc.createColors(true), version: "1.2.3" },
+  )
+
+  assert.equal(summary.includes(`${String.fromCodePoint(27)}[`), true)
+  assert.match(summary, /waiting to start/)
+  assert.match(summary, /npx codex-skin@1\.2\.3 stop/)
+})
 
 test("parseArguments reads configure options without evaluating shell text", () => {
   assert.deepEqual(
