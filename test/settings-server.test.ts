@@ -41,6 +41,22 @@ test("settings server identity rejects a recycled pid", () => {
   )
 })
 
+test("settings server identity accepts the npm bin shim command", () => {
+  const processIdentity = {
+    command: "/opt/node /Users/test/.npm/_npx/cache/node_modules/.bin/codex-skin settings-server",
+    startedAt: "Mon Jul 16 09:00:00 2026",
+  }
+  const state = {
+    pid: 42,
+    port: 4179,
+    process: processIdentity,
+    startedAt: "2026-07-16T01:00:00.000Z",
+    token: "test-token",
+  }
+
+  assert.equal(settingsServerIdentityMatches(state, processIdentity), true)
+})
+
 test("stopSettingsServer signals the verified server and removes its state", async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-stop-"))
   const processIdentity = {

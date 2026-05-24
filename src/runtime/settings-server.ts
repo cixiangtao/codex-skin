@@ -98,7 +98,12 @@ export function settingsServerIdentityMatches(
   state: SettingsServerState,
   actual: ProcessIdentity | null,
 ) {
-  if (!actual || !/codex-skin\.(?:js|ts).*\bsettings-server\b/.test(actual.command)) return false
+  if (
+    !actual ||
+    !/(?:^|[\\/])codex-skin(?:\.(?:js|ts))?\s+settings-server(?:\s|$)/.test(actual.command)
+  ) {
+    return false
+  }
   if (!state.process) return true
   return actual.command === state.process.command && actual.startedAt === state.process.startedAt
 }
