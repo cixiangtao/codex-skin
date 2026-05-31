@@ -207,7 +207,7 @@ export function formatRuntimeSummary(
   const backgroundStatus = daemonPid
     ? `${running} ${colors.dim("·")} PID ${colors.cyan(daemonPid)}`
     : colors.yellow("waiting to start")
-  const stopCommand = `npx codex-skin@${version} stop`
+  const stopCommand = "npx codex-skin stop"
 
   return [
     `${colors.bold(colors.magenta("Codex Skin"))} ${colors.dim(`v${version}`)}`,

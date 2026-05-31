@@ -29,7 +29,7 @@ test("formatRuntimeSummary shows version, ports, processes, and the stop command
       "  Settings   running · PID 123 · 127.0.0.1:4179",
       "  Background running · PID 456",
       "  Codex CDP  127.0.0.1:9229",
-      "  Stop       npx codex-skin@1.2.3-beta.4 stop",
+      "  Stop       npx codex-skin stop",
     ].join("\n"),
   )
 })
@@ -47,7 +47,7 @@ test("formatRuntimeSummary uses terminal colors and explains a pending backgroun
 
   assert.equal(summary.includes(`${String.fromCodePoint(27)}[`), true)
   assert.match(summary, /waiting to start/)
-  assert.match(summary, /npx codex-skin@1\.2\.3 stop/)
+  assert.match(summary, /npx codex-skin stop/)
 })
 
 test("parseArguments reads configure options without evaluating shell text", () => {
