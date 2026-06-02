@@ -130,7 +130,6 @@ const apiErrorMessages: Readonly<Record<string, string>> = {
   IMAGE_MISSING: "请先选择一张人物图片。",
   NO_TARGETS: "没有找到可应用背景的 Codex 窗口，请打开 Codex 后重试。",
   PORT_IN_USE: "背景连接端口正被其他程序占用，请重试。",
-  QUIT_TIMEOUT: "Codex 未能及时退出，请完全退出后重试。",
   RESTART_REQUIRED: "Codex 需要重启后才能启用人物背景。",
 }
 

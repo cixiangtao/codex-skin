@@ -10,6 +10,11 @@ const execFileAsync = promisify(execFile)
 const CODEX_BUNDLE_ID = "com.openai.codex"
 const PROCESS_POLL_INTERVAL_MS = 250
 
+interface WaitForCodexExitOptions {
+  isCodexRunningImpl?: (appPath: string) => Promise<boolean>
+  pollIntervalMs?: number
+}
+
 export interface MacProcess {
   command: string
   pid: number
@@ -165,14 +170,14 @@ export async function quitCodex() {
   ])
 }
 
-/** Waits until the configured Codex main process has fully exited. */
-export async function waitForCodexExit(appPath: string, timeoutMs = 15_000) {
-  const deadline = Date.now() + timeoutMs
-  while (Date.now() < deadline) {
-    if (!(await isCodexRunning(appPath))) return true
-    await new Promise<void>((resolve) => setTimeout(resolve, PROCESS_POLL_INTERVAL_MS))
+/** Keeps polling until the configured Codex main process has fully exited. */
+export async function waitForCodexExit(appPath: string, options: WaitForCodexExitOptions = {}) {
+  const running = options.isCodexRunningImpl || isCodexRunning
+  while (await running(appPath)) {
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, options.pollIntervalMs ?? PROCESS_POLL_INTERVAL_MS),
+    )
   }
-  return !(await isCodexRunning(appPath))
 }
 
 /** Returns the main ChatGPT process id, excluding renderer and helper processes. */

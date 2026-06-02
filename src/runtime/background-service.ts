@@ -41,7 +41,7 @@ interface ServiceOptions {
   restartRunningCodex?: boolean
   stopDaemonImpl?: () => Promise<number | null>
   timeoutMs?: number
-  waitForCodexExitImpl?: (appPath: string) => Promise<boolean>
+  waitForCodexExitImpl?: (appPath: string) => Promise<void>
   writeConfigImpl?: (config: BackgroundConfig) => Promise<BackgroundConfig>
 }
 
@@ -209,12 +209,7 @@ export async function startConfiguredBackground(
     }
     await (options.stopDaemonImpl || stopDaemon)()
     await (options.quitCodexImpl || quitCodex)()
-    if (!(await (options.waitForCodexExitImpl || waitForCodexExit)(config.appPath))) {
-      throw new BackgroundStateError(
-        "QUIT_TIMEOUT",
-        "Codex did not quit in time. Quit Codex completely, then try again.",
-      )
-    }
+    await (options.waitForCodexExitImpl || waitForCodexExit)(config.appPath)
     running = false
   }
   if (!running) {

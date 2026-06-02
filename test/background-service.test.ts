@@ -157,37 +157,12 @@ test("startConfiguredBackground restarts Codex after the user confirms", async (
       },
       waitForCodexExitImpl: async () => {
         calls.push("wait-for-exit")
-        return true
       },
     })
 
     assert.deepEqual(calls, ["stop-daemon", "quit", "wait-for-exit", "launch", "inject", "daemon"])
     assert.equal(result.mode, "started")
     assert.equal(result.targets, 1)
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
-})
-
-test("startConfiguredBackground stops when Codex does not finish quitting", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
-  try {
-    const image = path.join(directory, "wallpaper.jpg")
-    await writeFile(image, Buffer.from([0xff, 0xd8, 0xff]))
-    await assert.rejects(
-      () =>
-        startConfiguredBackground(normalizeConfig({ image }), {
-          entryPath: "/tmp/codex-skin.mjs",
-          appExecutableExistsImpl: async () => true,
-          isCdpAvailableImpl: async () => false,
-          isCodexRunningImpl: async () => true,
-          quitCodexImpl: async () => undefined,
-          restartRunningCodex: true,
-          stopDaemonImpl: async () => null,
-          waitForCodexExitImpl: async () => false,
-        }),
-      (error) => error instanceof BackgroundStateError && error.code === "QUIT_TIMEOUT",
-    )
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

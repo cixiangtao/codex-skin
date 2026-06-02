@@ -10,7 +10,20 @@ import {
   processDescendsFrom,
   processListContainsExecutable,
   resolveAppExecutable,
+  waitForCodexExit,
 } from "../src/runtime/macos.ts"
+
+test("waitForCodexExit keeps polling until Codex fully exits", async () => {
+  let checks = 0
+  await waitForCodexExit("/Applications/ChatGPT.app", {
+    isCodexRunningImpl: async () => {
+      checks += 1
+      return checks < 4
+    },
+    pollIntervalMs: 0,
+  })
+  assert.equal(checks, 4)
+})
 
 test("resolveAppExecutable targets the signed app executable", () => {
   assert.equal(
