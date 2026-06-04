@@ -117,6 +117,7 @@ npx codex-skin configure --auto-port      # 恢复自动选择端口
 CDP 参数必须在 Codex 启动时传入。如果 Codex 已经以普通模式运行，工具会询问是否允许重启：
 
 - 确认后，工具会正常退出 Codex，等待进程结束，再以仅回环可访问的 CDP 连接重新启动并应用布景
+- 如果 Codex 再次询问是否退出，请在 Codex 中确认；Codex Skin 会一直等到 Codex 完全退出
 - 拒绝后，Codex Skin 会直接退出，不会改动正在运行的 Codex
 
 后续建议始终通过 `npx codex-skin` 启动，让背景连接从 Codex 启动阶段即可用。

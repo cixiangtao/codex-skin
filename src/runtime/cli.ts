@@ -271,6 +271,11 @@ async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
         io.log("Codex Skin did not start. Quit Codex completely, then run codex-skin again.")
         return 0
       }
+      io.log(
+        (options.colors || pc).yellow(
+          "Waiting for Codex to quit. If Codex asks again, confirm the quit in Codex.",
+        ),
+      )
     }
   }
 

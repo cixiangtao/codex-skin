@@ -152,7 +152,7 @@ export async function confirmCodexRestart() {
   try {
     const { stdout } = await execFileAsync("/usr/bin/osascript", [
       "-e",
-      'button returned of (display dialog "Codex is already running without background support. Restart Codex now to start background mode? If you exit Codex Skin, quit Codex completely before trying again." with title "Codex Skin" buttons {"Exit Codex Skin", "Restart Codex"} default button "Restart Codex" cancel button "Exit Codex Skin" with icon caution)',
+      'button returned of (display dialog "Codex is already running without background support. Restart Codex now to start background mode? Codex may ask you to confirm quitting again; Codex Skin will keep waiting until Codex exits." with title "Codex Skin" buttons {"Exit Codex Skin", "Restart Codex"} default button "Restart Codex" cancel button "Exit Codex Skin" with icon caution)',
     ])
     return stdout.trim() === "Restart Codex"
   } catch (error) {

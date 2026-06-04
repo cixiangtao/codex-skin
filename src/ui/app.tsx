@@ -350,11 +350,14 @@ export function App() {
       } catch (error) {
         if (apiErrorCode(error) !== "RESTART_REQUIRED") throw error
         const confirmed = window.confirm(
-          "Codex 正在运行，但未启用人物背景连接。是否立即重启 Codex 并启动背景模式？",
+          "Codex 正在运行，但未启用人物背景连接。是否立即重启 Codex 并启动背景模式？\n\nCodex 可能会再次询问是否退出，请在 Codex 中确认；本页会一直等到 Codex 完全退出。",
         )
         if (!confirmed) {
           throw new Error("Codex Skin 已停止启动。请先完全退出 Codex，再重新运行。")
         }
+        const waitingMessage = "正在等待 Codex 退出，如果 Codex 再次弹出确认，请选择退出……"
+        setActionNote(waitingMessage)
+        notify(waitingMessage)
         payload = await start(true)
       }
       applyState(payload)
