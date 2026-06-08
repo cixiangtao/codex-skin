@@ -30,10 +30,7 @@ export async function imageFileToDataUrl(imagePath: string) {
 }
 
 const SURFACE_SELECTORS = {
-  main: [
-    ':root[data-codex-window-type="electron"] .main-surface',
-    ':root[data-codex-window-type="electron"] .browser-main-surface',
-  ],
+  main: [':root[data-codex-window-type="electron"] .app-shell-main-content-viewport'],
   sidebar: [':root[data-codex-window-type="electron"] .app-shell-left-panel'],
 } as const satisfies Record<BackgroundSurface, readonly string[]>
 

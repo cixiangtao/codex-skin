@@ -101,7 +101,7 @@ export function buildInjectionExpression(css: string) {
 export function buildVerificationExpression(css: string) {
   const serializedId = serializeForJavaScript(BACKGROUND_STYLE_ID)
   const serializedHash = serializeForJavaScript(backgroundCssHash(css))
-  const expectedMain = css.includes(".main-surface::before")
+  const expectedMain = css.includes(".app-shell-main-content-viewport::before")
   const expectedSidebar = css.includes(".app-shell-left-panel::before")
   return `(() => {
     const style = document.getElementById(${serializedId});
@@ -121,7 +121,7 @@ export function buildVerificationExpression(css: string) {
       };
     };
     const surfaces = {
-      main: inspectSurface('.main-surface, .browser-main-surface', ${expectedMain}),
+      main: inspectSurface('.app-shell-main-content-viewport', ${expectedMain}),
       sidebar: inspectSurface('.app-shell-left-panel', ${expectedSidebar}),
     };
     const expectedSurfaces = Object.values(surfaces).filter((surface) => surface.expected);

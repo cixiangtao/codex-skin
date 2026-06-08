@@ -19,10 +19,13 @@ test("buildInjectionExpression is idempotent and preserves arbitrary CSS", () =>
   assert.match(expression, /setTimeout/)
   assert.match(expression, /textContent/)
   assert.match(expression, /<\\\/style>/)
+  assert.doesNotMatch(expression, /ResizeObserver/)
+  assert.doesNotMatch(expression, /codex-skin-main-safe/)
 })
 
 test("buildVerificationExpression checks the exact applied CSS", () => {
-  const css = ".main-surface::before, .app-shell-left-panel::before { content: ''; }"
+  const css =
+    ".app-shell-main-content-viewport::before, .app-shell-left-panel::before { content: ''; }"
   const expression = buildVerificationExpression(css)
   assert.match(expression, new RegExp(backgroundCssHash(css)))
   assert.match(expression, /backgroundImage/)
