@@ -3,7 +3,7 @@ import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 import { isCdpAvailable } from "./cdp.ts"
-import { configuredBackgroundSurfaces, readConfig, resolveDataDirectory } from "./config.ts"
+import { configuredBackgroundImages, readConfig, resolveDataDirectory } from "./config.ts"
 import { buildBackgroundCss } from "./css.ts"
 import { removeFromAllTargets, TargetSessionManager } from "./injector.ts"
 import { findCodexProcessId, inspectCdpPort } from "./macos.ts"
@@ -187,7 +187,7 @@ export async function runDaemon(options: DaemonOptions = {}) {
 
         const cdpPort = await inspectCdpPort(config.appPath, config.port)
         const cdpReady = cdpPort.state === "codex" && (await isCdpAvailable({ port: config.port }))
-        const hasConfiguredBackground = configuredBackgroundSurfaces(config).length > 0
+        const hasConfiguredBackground = configuredBackgroundImages(config).length > 0
         if (config.enabled && hasConfiguredBackground && cdpReady) {
           const signature = JSON.stringify(config)
           if (signature !== cachedConfig) {

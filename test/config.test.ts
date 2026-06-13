@@ -75,7 +75,7 @@ test("writeConfig persists normalized JSON atomically", async () => {
     assert.equal(raw.surfaces.main.illustrationBlur, 6)
     assert.equal(raw.surfaces.main.illustrationOpacity, 0.65)
     assert.equal(raw.surfaces.sidebar.enabled, false)
-    assert.equal(raw.version, 4)
+    assert.equal(raw.version, 6)
     assert.equal(raw.portMode, "auto")
   } finally {
     await rm(dataDirectory, { recursive: true, force: true })
@@ -109,6 +109,28 @@ test("normalizeConfig preserves independent surface settings", () => {
   assert.equal(config.surfaces.sidebar.illustrationOpacity, 0.18)
 })
 
+test("normalizeConfig preserves and clamps the global wallpaper", () => {
+  const config = normalizeConfig({
+    wallpaper: {
+      backgroundTransparency: 1.4,
+      enabled: true,
+      image: "/tmp/wallpaper.png",
+      fit: "contain",
+      positionX: -10,
+      positionY: 140,
+    },
+  })
+
+  assert.deepEqual(config.wallpaper, {
+    backgroundTransparency: 1,
+    enabled: true,
+    image: "/tmp/wallpaper.png",
+    fit: "contain",
+    positionX: 0,
+    positionY: 100,
+  })
+})
+
 test("normalizeConfig migrates the v3 background into the main surface", () => {
   const config = normalizeConfig({
     version: 3,
@@ -118,7 +140,8 @@ test("normalizeConfig migrates the v3 background into the main surface", () => {
     illustrationOpacity: 0.4,
   })
 
-  assert.equal(config.version, 4)
+  assert.equal(config.version, 6)
+  assert.deepEqual(config.wallpaper, DEFAULT_CONFIG.wallpaper)
   assert.equal(config.surfaces.main.enabled, true)
   assert.equal(config.surfaces.main.image, "/tmp/legacy.png")
   assert.equal(config.surfaces.main.illustrationSize, 460)

@@ -34,6 +34,22 @@ test("buildVerificationExpression checks the exact applied CSS", () => {
   assert.match(expression, /expected/)
 })
 
+test("buildVerificationExpression verifies the body wallpaper and surface opacity", () => {
+  const css = ':root[data-codex-window-type="electron"] body { background-image: url(test); }'
+  const expression = buildVerificationExpression(css)
+
+  assert.match(expression, /bodyBackgroundImage/)
+  assert.match(expression, /mainSurfaceMatchesVariable/)
+  assert.match(expression, /surfaceVariableConfigured/)
+  assert.match(expression, /terminalSurfacesMatch/)
+  assert.match(expression, /sidebarBridgeTransparent/)
+  assert.match(expression, /topFadeTransparent/)
+  assert.match(expression, /color-token-main-surface-primary/)
+  assert.match(expression, /data-codex-terminal/)
+  assert.doesNotMatch(expression, /data-app-shell-focus-area/)
+  assert.match(expression, /wallpaper\.pass/)
+})
+
 test("evaluateOnTarget surfaces renderer exceptions", async () => {
   class ExceptionWebSocket extends EventTarget {
     static OPEN = 1

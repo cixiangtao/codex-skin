@@ -79,6 +79,36 @@ test("syncConfiguredBackground applies valid settings and keeps the daemon alive
   }
 })
 
+test("syncConfiguredBackground applies a wallpaper without character surfaces", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
+  try {
+    const image = path.join(directory, "wallpaper.png")
+    await writeFile(image, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    let injectedCss = ""
+    const result = await syncConfiguredBackground(
+      normalizeConfig({
+        wallpaper: { enabled: true, image },
+        surfaces: { main: { enabled: false }, sidebar: { enabled: false } },
+      }),
+      {
+        isCdpAvailableImpl: async () => true,
+        injectAllTargetsImpl: async ({ css }) => {
+          injectedCss = css
+          return [{ ok: true }]
+        },
+      },
+    )
+
+    assert.equal(result.mode, "injected")
+    assert.match(
+      injectedCss,
+      /--color-token-main-surface-primary:\s*color-mix\(in srgb, var\(--codex-base-surface\) 0%, transparent\)/,
+    )
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
 test("backgroundStatus reports image readability per surface", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
   try {

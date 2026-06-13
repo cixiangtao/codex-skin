@@ -25,6 +25,7 @@ import type {
   DataDirectoryOptions,
   SpawnImplementation,
   SurfaceBackgroundConfigInput,
+  WallpaperConfigInput,
 } from "./types.ts"
 import { BACKGROUND_SURFACES, errorCode, errorMessage } from "./types.ts"
 
@@ -34,6 +35,13 @@ const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000
 const defaultUiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../dist/ui")
 const COOKIE_NAME = "codex_skin_settings"
 const EDITABLE_CONFIG_KEYS = new Set(["enabled"])
+const EDITABLE_WALLPAPER_KEYS = new Set([
+  "backgroundTransparency",
+  "enabled",
+  "fit",
+  "positionX",
+  "positionY",
+])
 const EDITABLE_SURFACE_KEYS = new Set([
   "enabled",
   "illustrationSize",
@@ -174,9 +182,20 @@ function editableConfig(input: unknown): BackgroundConfigInput {
       ? (source.surfaces as Record<string, unknown>)
       : {}
   const surfaceUpdates: Partial<Record<BackgroundSurface, SurfaceBackgroundConfigInput>> = {}
+  let wallpaperUpdate: WallpaperConfigInput | undefined
   if (result.enabled !== undefined) {
     for (const surface of BACKGROUND_SURFACES) {
       surfaceUpdates[surface] = { enabled: Boolean(result.enabled) }
+    }
+    wallpaperUpdate = { enabled: Boolean(result.enabled) }
+  }
+  const wallpaper = source.wallpaper
+  if (wallpaper && typeof wallpaper === "object" && !Array.isArray(wallpaper)) {
+    wallpaperUpdate = {
+      ...wallpaperUpdate,
+      ...Object.fromEntries(
+        Object.entries(wallpaper).filter(([key]) => EDITABLE_WALLPAPER_KEYS.has(key)),
+      ),
     }
   }
   const legacyMainUpdate = Object.fromEntries(
@@ -196,6 +215,7 @@ function editableConfig(input: unknown): BackgroundConfigInput {
     }
   }
   if (Object.keys(surfaceUpdates).length > 0) result.surfaces = surfaceUpdates
+  if (wallpaperUpdate) result.wallpaper = wallpaperUpdate
   return result
 }
 
@@ -216,6 +236,7 @@ async function saveAndSync(input: unknown, options: SettingsOptions) {
     {
       ...current,
       ...updates,
+      wallpaper: { ...current.wallpaper, ...updates.wallpaper },
       surfaces: {
         main: { ...current.surfaces.main, ...updates.surfaces?.main },
         sidebar: { ...current.surfaces.sidebar, ...updates.surfaces?.sidebar },
@@ -229,7 +250,7 @@ async function saveAndSync(input: unknown, options: SettingsOptions) {
 
 async function uploadImage(
   request: IncomingMessage,
-  surface: BackgroundSurface,
+  imageTarget: BackgroundSurface | "wallpaper",
   options: SettingsOptions,
 ) {
   const mediaType = String(request.headers["content-type"] || "")
@@ -243,7 +264,7 @@ async function uploadImage(
   const imageDirectory = path.join(options.dataDirectory || resolveDataDirectory(), "images")
   await mkdir(imageDirectory, { recursive: true, mode: 0o700 })
   const now = Date.now()
-  const target = path.join(imageDirectory, `background-${surface}-${now}${extension}`)
+  const target = path.join(imageDirectory, `background-${imageTarget}-${now}${extension}`)
   const temporary = `${target}.${process.pid}.tmp${extension}`
   await writeFile(temporary, contents, { mode: 0o600 })
   try {
@@ -255,20 +276,27 @@ async function uploadImage(
   }
 
   const previous = await readConfig({ dataDirectory: options.dataDirectory })
-  const previousImage = previous.surfaces[surface].image
+  const previousImage =
+    imageTarget === "wallpaper" ? previous.wallpaper.image : previous.surfaces[imageTarget].image
   const config = await writeConfig(
-    {
-      ...previous,
-      surfaces: {
-        ...previous.surfaces,
-        [surface]: { ...previous.surfaces[surface], enabled: true, image: target },
-      },
-    },
+    imageTarget === "wallpaper"
+      ? { ...previous, wallpaper: { ...previous.wallpaper, enabled: true, image: target } }
+      : {
+          ...previous,
+          surfaces: {
+            ...previous.surfaces,
+            [imageTarget]: {
+              ...previous.surfaces[imageTarget],
+              enabled: true,
+              image: target,
+            },
+          },
+        },
     { dataDirectory: options.dataDirectory },
   )
-  const imageStillReferenced = BACKGROUND_SURFACES.some(
-    (candidate) => config.surfaces[candidate].image === previousImage,
-  )
+  const imageStillReferenced =
+    config.wallpaper.image === previousImage ||
+    BACKGROUND_SURFACES.some((candidate) => config.surfaces[candidate].image === previousImage)
   if (
     previousImage?.startsWith(`${imageDirectory}${path.sep}`) &&
     previousImage !== target &&
@@ -280,8 +308,9 @@ async function uploadImage(
   return { ...(await statePayload(config, options)), application }
 }
 
-function imageSurface(pathname: string): BackgroundSurface | undefined {
+function imageTarget(pathname: string): BackgroundSurface | "wallpaper" | undefined {
   if (pathname === "/api/image") return "main"
+  if (pathname === "/api/wallpaper/image") return "wallpaper"
   const match = pathname.match(/^\/api\/surfaces\/(main|sidebar)\/image$/)
   return match?.[1] as BackgroundSurface | undefined
 }
@@ -355,10 +384,13 @@ export function createSettingsHttpServer(options: SettingsOptions) {
         return
       }
 
-      const requestedImageSurface = imageSurface(url.pathname)
-      if (request.method === "GET" && requestedImageSurface) {
+      const requestedImageTarget = imageTarget(url.pathname)
+      if (request.method === "GET" && requestedImageTarget) {
         const config = await readConfig({ dataDirectory })
-        const image = config.surfaces[requestedImageSurface].image
+        const image =
+          requestedImageTarget === "wallpaper"
+            ? config.wallpaper.image
+            : config.surfaces[requestedImageTarget].image
         if (!image) {
           response.statusCode = 404
           response.end()
@@ -380,8 +412,8 @@ export function createSettingsHttpServer(options: SettingsOptions) {
         return
       }
 
-      if (request.method === "POST" && requestedImageSurface) {
-        sendJson(response, 200, await uploadImage(request, requestedImageSurface, runtimeOptions))
+      if (request.method === "POST" && requestedImageTarget) {
+        sendJson(response, 200, await uploadImage(request, requestedImageTarget, runtimeOptions))
         return
       }
 

@@ -92,3 +92,47 @@ test("buildBackgroundCss creates independent main and sidebar layers", async () 
     await rm(directory, { recursive: true, force: true })
   }
 })
+
+test("buildBackgroundCss paints one body wallpaper and reveals it through the main surface", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-"))
+  try {
+    const wallpaper = path.join(directory, "wallpaper.jpg")
+    await writeFile(wallpaper, Buffer.from([0xff, 0xd8, 0xff]))
+    const css = await buildBackgroundCss({
+      wallpaper: {
+        backgroundTransparency: 0.35,
+        enabled: true,
+        image: wallpaper,
+        fit: "contain",
+        positionX: 25,
+        positionY: 75,
+      },
+      surfaces: {
+        main: { enabled: false },
+        sidebar: { enabled: false },
+      },
+    })
+
+    assert.match(css, /:root\[data-codex-window-type="electron"\] body/)
+    assert.match(css, /background-image:\s*url\("data:image\/jpeg;base64,\/9j\/"\)/)
+    assert.match(css, /background-position:\s*25% 75%/)
+    assert.match(css, /background-size:\s*contain/)
+    assert.match(css, /background-attachment:\s*fixed/)
+    assert.match(
+      css,
+      /--color-token-main-surface-primary:\s*color-mix\(in srgb, var\(--codex-base-surface\) 65%, transparent\)\s*!important/,
+    )
+    assert.match(css, /data-codex-terminal="true"/)
+    assert.match(css, /\.xterm-viewport/)
+    assert.match(css, /--vscode-terminal-background:\s*var\(--color-token-main-surface-primary\)/)
+    assert.match(css, /\.app-shell-left-panel::after[\s\S]*?background:\s*transparent\s*!important/)
+    assert.match(
+      css,
+      /\.app-shell-main-content-top-fade[\s\S]*?background:\s*transparent\s*!important/,
+    )
+    assert.doesNotMatch(css, /data-app-shell-focus-area/)
+    assert.doesNotMatch(css, /\.app-shell-left-panel::before/)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})

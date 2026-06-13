@@ -28,6 +28,7 @@ export interface BackgroundVerification {
     main: SurfaceVerification
     sidebar: SurfaceVerification
   }
+  wallpaper?: WallpaperVerification
 }
 
 export interface SurfaceVerification {
@@ -36,6 +37,20 @@ export interface SurfaceVerification {
   pass: boolean
   pointerEvents: string
   present: boolean
+}
+
+export interface WallpaperVerification {
+  backgroundImage: string
+  expected: boolean
+  expectedSurfaceBackground: string
+  mainSurfaceBackground: string
+  mainSurfaceMatchesVariable: boolean
+  mainSurfacePresent: boolean
+  pass: boolean
+  sidebarBridgeTransparent: boolean
+  surfaceVariableConfigured: boolean
+  terminalSurfacesMatch: boolean
+  topFadeTransparent: boolean
 }
 
 export interface TargetVerification extends BackgroundVerification {
@@ -103,6 +118,7 @@ export function buildVerificationExpression(css: string) {
   const serializedHash = serializeForJavaScript(backgroundCssHash(css))
   const expectedMain = css.includes(".app-shell-main-content-viewport::before")
   const expectedSidebar = css.includes(".app-shell-left-panel::before")
+  const expectedWallpaper = css.includes(':root[data-codex-window-type="electron"] body')
   return `(() => {
     const style = document.getElementById(${serializedId});
     const inspectSurface = (selector, expected) => {
@@ -124,14 +140,56 @@ export function buildVerificationExpression(css: string) {
       main: inspectSurface('.app-shell-main-content-viewport', ${expectedMain}),
       sidebar: inspectSurface('.app-shell-left-panel', ${expectedSidebar}),
     };
+    const bodyBackgroundImage = getComputedStyle(document.body).backgroundImage;
+    const mainSurface = document.querySelector('.main-surface');
+    const mainSurfaceBackground = mainSurface ? getComputedStyle(mainSurface).backgroundColor : '';
+    const surfaceVariable = getComputedStyle(document.documentElement)
+      .getPropertyValue('--color-token-main-surface-primary').trim();
+    const surfaceProbe = document.createElement('span');
+    surfaceProbe.style.cssText = 'position:fixed;width:0;height:0;visibility:hidden;pointer-events:none;';
+    surfaceProbe.style.backgroundColor = 'var(--color-token-main-surface-primary)';
+    document.body.append(surfaceProbe);
+    const expectedSurfaceBackground = getComputedStyle(surfaceProbe).backgroundColor;
+    surfaceProbe.remove();
+    const terminalSurfaces = [
+      ...document.querySelectorAll('[data-codex-terminal="true"], [data-codex-terminal="true"] .xterm-viewport'),
+    ];
+    const transparentPaint = (style) =>
+      (style.backgroundColor === 'transparent' || style.backgroundColor === 'rgba(0, 0, 0, 0)') &&
+      style.backgroundImage === 'none';
+    const sidebar = document.querySelector('.app-shell-left-panel');
+    const topFades = [...document.querySelectorAll('.app-shell-main-content-top-fade')];
+    const wallpaper = {
+      expected: ${expectedWallpaper},
+      backgroundImage: bodyBackgroundImage,
+      expectedSurfaceBackground,
+      mainSurfaceBackground,
+      mainSurfaceMatchesVariable: Boolean(mainSurface) &&
+        mainSurfaceBackground === expectedSurfaceBackground,
+      mainSurfacePresent: Boolean(mainSurface),
+      sidebarBridgeTransparent: !sidebar ||
+        transparentPaint(getComputedStyle(sidebar, '::after')),
+      surfaceVariableConfigured: surfaceVariable.includes('color-mix'),
+      terminalSurfacesMatch: terminalSurfaces.every((element) =>
+        getComputedStyle(element).backgroundColor === expectedSurfaceBackground),
+      topFadeTransparent: topFades.every((element) =>
+        transparentPaint(getComputedStyle(element))),
+    };
+    wallpaper.pass = !wallpaper.expected || (wallpaper.backgroundImage !== '' &&
+      wallpaper.backgroundImage !== 'none' && wallpaper.mainSurfacePresent &&
+      wallpaper.mainSurfaceMatchesVariable && wallpaper.surfaceVariableConfigured &&
+      wallpaper.sidebarBridgeTransparent && wallpaper.terminalSurfacesMatch &&
+      wallpaper.topFadeTransparent);
     const expectedSurfaces = Object.values(surfaces).filter((surface) => surface.expected);
-    const surfacesPass = expectedSurfaces.length > 0 && expectedSurfaces.every((surface) => surface.pass);
+    const surfacesPass = expectedSurfaces.every((surface) => surface.pass);
+    const hasExpectedLayer = wallpaper.expected || expectedSurfaces.length > 0;
     const result = {
       href: location.href,
       enabled: document.documentElement.dataset.codexSkin === 'enabled',
       stylePresent: Boolean(style),
       hashMatches: style?.dataset.codexSkinHash === ${serializedHash},
       surfaces,
+      wallpaper,
       surfacePresent: expectedSurfaces.every((surface) => surface.present),
       backgroundImage: surfacesPass ? 'active' : 'none',
       pointerEvents: expectedSurfaces.every((surface) => surface.pointerEvents === 'none')
@@ -140,7 +198,8 @@ export function buildVerificationExpression(css: string) {
     };
     return {
       ...result,
-      pass: result.enabled && result.stylePresent && result.hashMatches && surfacesPass,
+      pass: result.enabled && result.stylePresent && result.hashMatches && hasExpectedLayer &&
+        surfacesPass && wallpaper.pass,
     };
   })()`
 }
@@ -390,6 +449,19 @@ export async function verifyAllTargets({
             pointerEvents: "",
             present: false,
           },
+        },
+        wallpaper: {
+          backgroundImage: "",
+          expected: false,
+          expectedSurfaceBackground: "",
+          mainSurfaceBackground: "",
+          mainSurfaceMatchesVariable: false,
+          mainSurfacePresent: false,
+          pass: false,
+          sidebarBridgeTransparent: false,
+          surfaceVariableConfigured: false,
+          terminalSurfacesMatch: false,
+          topFadeTransparent: false,
         },
         title: target.title,
         url: target.url,

@@ -9,6 +9,7 @@ import type {
   ConfigOptions,
   DataDirectoryOptions,
   SurfaceBackgroundConfig,
+  WallpaperConfig,
 } from "./types.ts"
 import { BACKGROUND_SURFACES, errorCode } from "./types.ts"
 
@@ -33,9 +34,19 @@ export const DEFAULT_SURFACE_CONFIGS = Object.freeze({
   },
 } as const satisfies Record<BackgroundSurface, SurfaceBackgroundConfig>)
 
+export const DEFAULT_WALLPAPER_CONFIG = Object.freeze({
+  backgroundTransparency: 1,
+  enabled: false,
+  image: null,
+  fit: "cover",
+  positionX: 50,
+  positionY: 50,
+} as const satisfies WallpaperConfig)
+
 export const DEFAULT_CONFIG = Object.freeze({
-  version: 4,
+  version: 6,
   enabled: true,
+  wallpaper: DEFAULT_WALLPAPER_CONFIG,
   surfaces: DEFAULT_SURFACE_CONFIGS,
   port: 9229,
   portMode: "auto",
@@ -51,6 +62,29 @@ export function resolveDataDirectory(env: NodeJS.ProcessEnv = process.env) {
     return path.join(path.resolve(env.XDG_CONFIG_HOME), "codex-skin")
   }
   return path.join(path.resolve(env.HOME || os.homedir()), ".config", "codex-skin")
+}
+
+function normalizeWallpaper(input: unknown, workingDirectory: string): WallpaperConfig {
+  const source = objectRecord(input)
+  const image =
+    typeof source.image === "string" && source.image.trim()
+      ? path.resolve(workingDirectory, source.image.trim())
+      : null
+
+  return {
+    backgroundTransparency: clampNumber(
+      source.backgroundTransparency,
+      0,
+      1,
+      DEFAULT_WALLPAPER_CONFIG.backgroundTransparency,
+    ),
+    enabled:
+      source.enabled === undefined ? DEFAULT_WALLPAPER_CONFIG.enabled : Boolean(source.enabled),
+    image,
+    fit: source.fit === "contain" ? "contain" : DEFAULT_WALLPAPER_CONFIG.fit,
+    positionX: clampNumber(source.positionX, 0, 100, DEFAULT_WALLPAPER_CONFIG.positionX),
+    positionY: clampNumber(source.positionY, 0, 100, DEFAULT_WALLPAPER_CONFIG.positionY),
+  }
 }
 
 export function resolveConfigPath(options: DataDirectoryOptions = {}) {
@@ -135,8 +169,9 @@ export function normalizeConfig(
         : DEFAULT_CONFIG.portMode
 
   return {
-    version: 4,
+    version: 6,
     enabled: source.enabled === undefined ? DEFAULT_CONFIG.enabled : Boolean(source.enabled),
+    wallpaper: normalizeWallpaper(source.wallpaper, workingDirectory),
     surfaces: {
       main: normalizeSurface(
         hasStructuredSurfaces ? surfaces.main : legacyMainSurface(source),
@@ -178,6 +213,17 @@ export function configuredBackgroundSurfaces(config: BackgroundConfig) {
     const surfaceConfig = config.surfaces[surface]
     return surfaceConfig.enabled && Boolean(surfaceConfig.image)
   })
+}
+
+/** Returns every enabled and configured image path in stable layer order. */
+export function configuredBackgroundImages(config: BackgroundConfig) {
+  const images: string[] = []
+  if (config.wallpaper.enabled && config.wallpaper.image) images.push(config.wallpaper.image)
+  for (const surface of configuredBackgroundSurfaces(config)) {
+    const image = config.surfaces[surface].image
+    if (image) images.push(image)
+  }
+  return images
 }
 
 export async function writeConfig(input: BackgroundConfigLike, options: ConfigOptions = {}) {

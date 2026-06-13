@@ -2,8 +2,17 @@ import { readFile, stat } from "node:fs/promises"
 import path from "node:path"
 
 import { anchoredBackgroundPosition } from "../shared/background-position.ts"
-import { configuredBackgroundSurfaces, normalizeConfig } from "./config.ts"
-import type { BackgroundConfigLike, BackgroundSurface, SurfaceBackgroundConfig } from "./types.ts"
+import {
+  configuredBackgroundImages,
+  configuredBackgroundSurfaces,
+  normalizeConfig,
+} from "./config.ts"
+import type {
+  BackgroundConfigLike,
+  BackgroundSurface,
+  SurfaceBackgroundConfig,
+  WallpaperConfig,
+} from "./types.ts"
 
 const IMAGE_TYPES = new Map([
   [".avif", "image/avif"],
@@ -61,19 +70,58 @@ ${pseudoElements} {
 }`.trim()
 }
 
-/** Builds independent character layers for every enabled Codex surface. */
+function wallpaperCss(config: WallpaperConfig, dataUrl: string) {
+  const opaqueWeight = Math.round((1 - config.backgroundTransparency) * 10_000) / 100
+  return `
+:root[data-codex-window-type="electron"] {
+  --color-token-main-surface-primary: color-mix(in srgb, var(--codex-base-surface) ${opaqueWeight}%, transparent) !important;
+}
+
+:root[data-codex-window-type="electron"] body {
+  background-image: url("${dataUrl}") !important;
+  background-position: ${config.positionX}% ${config.positionY}% !important;
+  background-repeat: no-repeat !important;
+  background-size: ${config.fit} !important;
+  background-attachment: fixed !important;
+}
+
+:root[data-codex-window-type="electron"] .app-shell-left-panel::after,
+:root[data-codex-window-type="electron"] .app-shell-main-content-top-fade {
+  background: transparent !important;
+}
+
+:root[data-codex-window-type="electron"] [data-codex-terminal="true"] {
+  --vscode-terminal-background: var(--color-token-main-surface-primary) !important;
+  background-color: var(--color-token-main-surface-primary) !important;
+}
+
+:root[data-codex-window-type="electron"] [data-codex-terminal="true"] .xterm-viewport {
+  background-color: var(--color-token-main-surface-primary) !important;
+}`.trim()
+}
+
+/** Builds the window wallpaper and independent character layers for enabled Codex surfaces. */
 export async function buildBackgroundCss(input: BackgroundConfigLike) {
   const config = normalizeConfig(input)
   if (!config.enabled) throw new Error("Codex background is disabled.")
   const surfaces = configuredBackgroundSurfaces(config)
-  if (surfaces.length === 0) throw new Error("No background image is configured.")
+  if (configuredBackgroundImages(config).length === 0) {
+    throw new Error("No background image is configured.")
+  }
 
-  const rules = await Promise.all(
+  const surfaceRules = await Promise.all(
     surfaces.map(async (surface) => {
       const surfaceConfig = config.surfaces[surface]
       if (!surfaceConfig.image) throw new Error(`No ${surface} background image is configured.`)
       return surfaceCss(surface, surfaceConfig, await imageFileToDataUrl(surfaceConfig.image))
     }),
   )
+  const rules =
+    config.wallpaper.enabled && config.wallpaper.image
+      ? [
+          wallpaperCss(config.wallpaper, await imageFileToDataUrl(config.wallpaper.image)),
+          ...surfaceRules,
+        ]
+      : surfaceRules
   return rules.join("\n\n")
 }

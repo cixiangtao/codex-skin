@@ -9,12 +9,7 @@ import {
   injectConfiguredBackground,
   startConfiguredBackground,
 } from "./background-service.ts"
-import {
-  configuredBackgroundSurfaces,
-  readConfig,
-  resolveConfigPath,
-  writeConfig,
-} from "./config.ts"
+import { configuredBackgroundImages, readConfig, resolveConfigPath, writeConfig } from "./config.ts"
 import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
 import { readDaemonPid, runDaemon, stopDaemon } from "./daemon.ts"
 import { removeFromAllTargets, verifyAllTargets } from "./injector.ts"
@@ -246,7 +241,7 @@ async function runDevelopmentServer(entryPath: string, io: CommandIo) {
 
 async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
   const config = await readConfig()
-  if (configuredBackgroundSurfaces(config).length === 0) {
+  if (configuredBackgroundImages(config).length === 0) {
     const server = await openSettings(entryPath)
     logRuntimeSummary(
       io,
@@ -324,6 +319,23 @@ export function verificationChecks(result: TargetVerification) {
       result.backgroundImage !== "" && result.backgroundImage !== "none",
     ])
   }
+  if (result.wallpaper?.expected) {
+    checks.push(["global wallpaper image active", result.wallpaper.backgroundImage !== "none"])
+    checks.push([
+      "main surface follows background opacity",
+      result.wallpaper.mainSurfaceMatchesVariable,
+    ])
+    checks.push([
+      "main surface opacity variable configured",
+      result.wallpaper.surfaceVariableConfigured,
+    ])
+    checks.push([
+      "terminal surfaces follow background opacity",
+      result.wallpaper.terminalSurfacesMatch,
+    ])
+    checks.push(["sidebar bridge is transparent", result.wallpaper.sidebarBridgeTransparent])
+    checks.push(["main content top fade is transparent", result.wallpaper.topFadeTransparent])
+  }
   checks.push(["decorative layer ignores pointer events", result.pointerEvents === "none"])
   return checks
 }
@@ -336,25 +348,22 @@ export function isSupportedNodeVersion(version = process.versions.node) {
 async function doctor(io: CommandIo) {
   const config = await readConfig()
   const cdp = await configuredCdpIsReady(config)
-  const configuredSurfaces = configuredBackgroundSurfaces(config)
+  const configuredImages = configuredBackgroundImages(config)
   const configuredImagesReadable =
-    configuredSurfaces.length > 0 &&
+    configuredImages.length > 0 &&
     (
       await Promise.all(
-        configuredSurfaces.map(async (surface) => {
-          const image = config.surfaces[surface].image
-          return image
-            ? await access(image)
-                .then(() => true)
-                .catch(() => false)
-            : false
-        }),
+        configuredImages.map((image) =>
+          access(image)
+            .then(() => true)
+            .catch(() => false),
+        ),
       )
     ).every(Boolean)
   const checks: Array<[string, boolean]> = [
     ["Node.js 22+", isSupportedNodeVersion()],
     ["ChatGPT executable", await appExecutableExists(config.appPath)],
-    ["Background image configured", configuredSurfaces.length > 0],
+    ["Background image configured", configuredImages.length > 0],
     ["Background image readable", configuredImagesReadable],
     [`Codex-owned CDP 127.0.0.1:${config.port}`, cdp.httpReady],
     ["Background daemon", Boolean(await readDaemonPid())],

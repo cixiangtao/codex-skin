@@ -1,7 +1,7 @@
 import { access } from "node:fs/promises"
 
 import { isCdpAvailable } from "./cdp.ts"
-import { configuredBackgroundSurfaces, writeConfig } from "./config.ts"
+import { configuredBackgroundImages, writeConfig } from "./config.ts"
 import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
 import { ensureDaemon, stopDaemon } from "./daemon.ts"
 import { injectAllTargets, removeFromAllTargets } from "./injector.ts"
@@ -111,14 +111,9 @@ export async function injectConfiguredBackground(
 }
 
 async function validateConfiguredImages(config: BackgroundConfig) {
-  const surfaces = configuredBackgroundSurfaces(config)
-  if (surfaces.length === 0) return false
-  await Promise.all(
-    surfaces.map(async (surface) => {
-      const image = config.surfaces[surface].image
-      if (image) await imageFileToDataUrl(image)
-    }),
-  )
+  const images = configuredBackgroundImages(config)
+  if (images.length === 0) return false
+  await Promise.all(images.map(imageFileToDataUrl))
   return true
 }
 
@@ -248,13 +243,21 @@ export async function backgroundStatus(config: BackgroundConfig, options: Servic
     (typeof BACKGROUND_SURFACES)[number],
     { imageReadable: boolean }
   >
-  const imageReadable = configuredBackgroundSurfaces(config).some(
-    (surface) => surfaces[surface].imageReadable,
-  )
+  const wallpaperImageReadable = config.wallpaper.image
+    ? await access(config.wallpaper.image)
+        .then(() => true)
+        .catch(() => false)
+    : false
+  const imageReadable =
+    (config.wallpaper.enabled && wallpaperImageReadable) ||
+    BACKGROUND_SURFACES.some(
+      (surface) => config.surfaces[surface].enabled && surfaces[surface].imageReadable,
+    )
   return {
     cdpAvailable: httpReady,
     cdpPortState: inspection.state,
     imageReadable,
+    wallpaper: { imageReadable: wallpaperImageReadable },
     surfaces,
   }
 }

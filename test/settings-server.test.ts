@@ -121,7 +121,7 @@ test("settings server requires its random session cookie", async () => {
     const authorized = await fetch(`${origin}/api/state`, { headers: { cookie } })
     assert.equal(authorized.status, 200)
     const state = (await authorized.json()) as { config: { version: number } }
-    assert.equal(state.config.version, 4)
+    assert.equal(state.config.version, 6)
   } finally {
     await new Promise<void>((resolve) => instance.server.close(() => resolve()))
     await rm(dataDirectory, { recursive: true, force: true })
@@ -238,6 +238,45 @@ test("settings server saves controls and accepts a local image upload", async ()
     )
     assert.deepEqual(await readFile(sidebarUploaded.config.surfaces.sidebar.image), sidebarImage)
 
+    const wallpaperResponse = await fetch(`${origin}/api/wallpaper/image`, {
+      method: "POST",
+      headers: { cookie, "content-type": "image/png" },
+      body: transparentPng,
+    })
+    assert.equal(wallpaperResponse.status, 200)
+    const wallpaperUploaded = (await wallpaperResponse.json()) as {
+      config: { wallpaper: { enabled: boolean; image: string } }
+    }
+    assert.equal(wallpaperUploaded.config.wallpaper.enabled, true)
+    assert.match(wallpaperUploaded.config.wallpaper.image, /images\/background-wallpaper-\d+\.png$/)
+
+    const wallpaperSettingsResponse = await fetch(`${origin}/api/config`, {
+      method: "PUT",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({
+        wallpaper: {
+          backgroundTransparency: 0.35,
+          fit: "contain",
+          positionX: 24,
+          positionY: 76,
+        },
+      }),
+    })
+    const wallpaperSettings = (await wallpaperSettingsResponse.json()) as {
+      config: {
+        wallpaper: {
+          backgroundTransparency: number
+          fit: string
+          positionX: number
+          positionY: number
+        }
+      }
+    }
+    assert.equal(wallpaperSettings.config.wallpaper.backgroundTransparency, 0.35)
+    assert.equal(wallpaperSettings.config.wallpaper.fit, "contain")
+    assert.equal(wallpaperSettings.config.wallpaper.positionX, 24)
+    assert.equal(wallpaperSettings.config.wallpaper.positionY, 76)
+
     const sidebarSettingsResponse = await fetch(`${origin}/api/config`, {
       method: "PUT",
       headers: { cookie, "content-type": "application/json" },
@@ -290,10 +329,12 @@ test("global enable updates synchronize both surface switches", async () => {
     const payload = (await response.json()) as {
       config: {
         enabled: boolean
+        wallpaper: { enabled: boolean }
         surfaces: { main: { enabled: boolean }; sidebar: { enabled: boolean } }
       }
     }
     assert.equal(payload.config.enabled, false)
+    assert.equal(payload.config.wallpaper.enabled, false)
     assert.equal(payload.config.surfaces.main.enabled, false)
     assert.equal(payload.config.surfaces.sidebar.enabled, false)
 
@@ -305,6 +346,7 @@ test("global enable updates synchronize both surface switches", async () => {
     assert.equal(enabledResponse.status, 200)
     const enabledPayload = (await enabledResponse.json()) as typeof payload
     assert.equal(enabledPayload.config.enabled, true)
+    assert.equal(enabledPayload.config.wallpaper.enabled, true)
     assert.equal(enabledPayload.config.surfaces.main.enabled, true)
     assert.equal(enabledPayload.config.surfaces.sidebar.enabled, true)
   } finally {

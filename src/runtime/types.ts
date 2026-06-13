@@ -14,9 +14,19 @@ export interface SurfaceBackgroundConfig {
   illustrationOpacity: number
 }
 
-export interface BackgroundConfig {
-  version: 4
+export interface WallpaperConfig {
+  backgroundTransparency: number
   enabled: boolean
+  image: string | null
+  fit: "contain" | "cover"
+  positionX: number
+  positionY: number
+}
+
+export interface BackgroundConfig {
+  version: 6
+  enabled: boolean
+  wallpaper: WallpaperConfig
   surfaces: Record<BackgroundSurface, SurfaceBackgroundConfig>
   port: number
   portMode: "auto" | "fixed"
@@ -27,8 +37,11 @@ export interface BackgroundConfig {
 export type SurfaceBackgroundConfigInput = Partial<SurfaceBackgroundConfig> &
   Record<string, unknown>
 
-export type BackgroundConfigInput = Partial<Omit<BackgroundConfig, "surfaces">> & {
+export type WallpaperConfigInput = Partial<WallpaperConfig> & Record<string, unknown>
+
+export type BackgroundConfigInput = Partial<Omit<BackgroundConfig, "surfaces" | "wallpaper">> & {
   surfaces?: Partial<Record<BackgroundSurface, SurfaceBackgroundConfigInput>>
+  wallpaper?: WallpaperConfigInput
 } & Record<string, unknown>
 export type BackgroundConfigLike = BackgroundConfig | BackgroundConfigInput
 
