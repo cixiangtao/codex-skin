@@ -1,4 +1,5 @@
 export type BackgroundSurface = "main" | "sidebar"
+export type BackgroundSettingsTab = "wallpaper" | BackgroundSurface
 
 export interface SurfaceBackgroundConfig {
   enabled: boolean
@@ -10,8 +11,18 @@ export interface SurfaceBackgroundConfig {
   illustrationOpacity: number
 }
 
+export interface WallpaperConfig {
+  backgroundTransparency: number
+  enabled: boolean
+  image: string | null
+  fit: "contain" | "cover"
+  positionX: number
+  positionY: number
+}
+
 export interface BackgroundConfig {
   enabled: boolean
+  wallpaper: WallpaperConfig
   surfaces: Record<BackgroundSurface, SurfaceBackgroundConfig>
 }
 
@@ -19,6 +30,7 @@ export interface BackgroundStatus {
   cdpAvailable: boolean
   daemonRunning: boolean
   imageReadable: boolean
+  wallpaper: { imageReadable: boolean }
   surfaces: Record<BackgroundSurface, { imageReadable: boolean }>
 }
 
@@ -37,6 +49,7 @@ export interface StatePayload {
 export type BusyAction = "save" | "start" | "surface-toggle" | "toggle" | null
 export type PreviewTheme = "system" | "light" | "dark"
 export type RangeKey =
+  | "backgroundTransparency"
   | "illustrationSize"
   | "illustrationBlur"
   | "illustrationOpacity"

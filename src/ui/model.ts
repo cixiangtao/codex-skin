@@ -17,6 +17,14 @@ export const acceptedImageTypes = new Set([
 
 export const defaultConfig = {
   enabled: false,
+  wallpaper: {
+    backgroundTransparency: 1,
+    enabled: false,
+    image: null,
+    fit: "cover",
+    positionX: 50,
+    positionY: 50,
+  },
   surfaces: {
     main: {
       enabled: true,
@@ -55,11 +63,18 @@ export function backgroundSurfaceIsEnabled(config: BackgroundConfig, surface: Ba
   return config.enabled && config.surfaces[surface].enabled
 }
 
+export const backgroundTabs = [
+  { label: "全局背景", value: "wallpaper" },
+  { label: "主面板", value: "main" },
+  { label: "侧边栏", value: "sidebar" },
+] as const
+
 /** Applies the master switch to the global state and both surface switches. */
 export function setAllBackgroundsEnabled(config: BackgroundConfig, enabled: boolean) {
   return {
     ...config,
     enabled,
+    wallpaper: { ...config.wallpaper, enabled },
     surfaces: {
       main: { ...config.surfaces.main, enabled },
       sidebar: { ...config.surfaces.sidebar, enabled },
@@ -126,11 +141,11 @@ const apiErrorMessages: Readonly<Record<string, string>> = {
   BAD_REQUEST: "请求内容无效，请检查后重试。",
   BODY_TOO_LARGE: "上传内容过大，图片不能超过 25 MB。",
   CDP_TIMEOUT: "Codex 已启动，但背景连接未能建立，请重试。",
-  DISABLED: "请先启用人物背景。",
-  IMAGE_MISSING: "请先选择一张人物图片。",
+  DISABLED: "请先启用背景。",
+  IMAGE_MISSING: "请先选择一张背景图片。",
   NO_TARGETS: "没有找到可应用背景的 Codex 窗口，请打开 Codex 后重试。",
   PORT_IN_USE: "背景连接端口正被其他程序占用，请重试。",
-  RESTART_REQUIRED: "Codex 需要重启后才能启用人物背景。",
+  RESTART_REQUIRED: "Codex 需要重启后才能启用背景。",
 }
 
 /** Converts API and browser failures into concise user-facing Chinese copy. */
@@ -146,27 +161,27 @@ export function describeError(error: unknown) {
 }
 
 export function describeApplication(application?: BackgroundApplication) {
-  if (!application) return "人物布景已保存。"
+  if (!application) return "背景设置已保存。"
   if (application.mode === "injected") {
-    return `人物布景已应用到 ${application.targets ?? 0} 个 Codex 窗口。`
+    return `背景已应用到 ${application.targets ?? 0} 个 Codex 窗口。`
   }
   if (application.mode === "started") {
     return `背景模式已启动，并应用到 ${application.targets ?? 0} 个 Codex 窗口。`
   }
-  if (application.mode === "removed") return "人物背景已关闭，Codex 原生界面保持不变。"
+  if (application.mode === "removed") return "背景已关闭，Codex 原生界面保持不变。"
   if (application.reason === "cdp-unavailable") {
-    return "布景已保存。请正常退出 Codex，保持此页面开启，然后点击“启动背景模式”。"
+    return "背景设置已保存。请正常退出 Codex，保持此页面开启，然后点击“启动背景模式”。"
   }
-  if (application.reason === "image-missing") return "布景已保存，请先选择一张人物插图。"
-  return "人物布景已保存。"
+  if (application.reason === "image-missing") return "背景设置已保存，请先选择一张背景图片。"
+  return "背景设置已保存。"
 }
 
 export function connectionDetails(status: BackgroundStatus | null, failed: boolean) {
   if (failed) return { state: "error", text: "设置服务异常" } as const
   if (!status) return { state: "ready", text: "正在连接本地服务" } as const
-  if (!status.imageReadable) return { state: "error", text: "插图不可读取" } as const
+  if (!status.imageReadable) return { state: "error", text: "背景图片不可读取" } as const
   if (status.cdpAvailable && status.daemonRunning) {
-    return { state: "connected", text: "人物背景已连接" } as const
+    return { state: "connected", text: "背景已连接" } as const
   }
   if (status.cdpAvailable) return { state: "ready", text: "Codex 可立即应用" } as const
   return { state: "ready", text: "等待启动背景模式" } as const

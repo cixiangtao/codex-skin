@@ -1,9 +1,10 @@
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent, RefObject } from "react"
 
 import { axisAnchor } from "../../shared/background-position.ts"
-import { backgroundSurfaceIsEnabled, backgroundSurfaces, previewThemes } from "../model.ts"
+import { backgroundSurfaceIsEnabled, backgroundTabs, previewThemes } from "../model.ts"
 import type {
   BackgroundConfig,
+  BackgroundSettingsTab,
   BackgroundSurface,
   PreviewTheme,
   SurfaceBackgroundConfig,
@@ -15,14 +16,21 @@ interface IllustrationStyle extends CSSProperties {
   "--illustration-preview-size": string
 }
 
+interface WallpaperPreviewStyle extends CSSProperties {
+  "--wallpaper-image"?: string
+  "--wallpaper-position"?: string
+  "--wallpaper-size"?: string
+  "--wallpaper-surface-background"?: string
+}
+
 interface PreviewSectionProps {
-  activeSurface: BackgroundSurface
+  activeTab: BackgroundSettingsTab
   config: BackgroundConfig
   effectiveTheme: Exclude<PreviewTheme, "system">
   fileDragging: boolean
   illustrationDragging?: BackgroundSurface
-  imageSources: Record<BackgroundSurface, string | undefined>
-  onActiveSurfaceChange: (surface: BackgroundSurface) => void
+  imageSources: Record<BackgroundSettingsTab, string | undefined>
+  onActiveTabChange: (tab: BackgroundSettingsTab) => void
   onChooseImage: () => void
   onDragEnter: (event: DragEvent<HTMLDivElement>) => void
   onDragLeave: () => void
@@ -120,13 +128,13 @@ function SurfaceIllustration({
 
 /** Renders both configured Codex surfaces and supports direct manipulation per surface. */
 export function PreviewSection({
-  activeSurface,
+  activeTab,
   config,
   effectiveTheme,
   fileDragging,
   illustrationDragging,
   imageSources,
-  onActiveSurfaceChange,
+  onActiveTabChange,
   onChooseImage,
   onDragEnter,
   onDragLeave,
@@ -138,10 +146,23 @@ export function PreviewSection({
   placementStageRefs,
   previewTheme,
 }: PreviewSectionProps) {
-  const activeLabel = backgroundSurfaces[activeSurface].label
-  const hasVisibleImage = (["main", "sidebar"] as const).some(
-    (surface) => backgroundSurfaceIsEnabled(config, surface) && imageSources[surface],
+  const activeLabel = backgroundTabs.find((tab) => tab.value === activeTab)?.label || "背景"
+  const wallpaperVisible = Boolean(
+    config.enabled && config.wallpaper.enabled && imageSources.wallpaper,
   )
+  const hasVisibleImage =
+    wallpaperVisible ||
+    (["main", "sidebar"] as const).some(
+      (surface) => backgroundSurfaceIsEnabled(config, surface) && imageSources[surface],
+    )
+  const wallpaperStyle: WallpaperPreviewStyle = wallpaperVisible
+    ? {
+        "--wallpaper-image": `url("${imageSources.wallpaper}")`,
+        "--wallpaper-position": `${config.wallpaper.positionX}% ${config.wallpaper.positionY}%`,
+        "--wallpaper-size": config.wallpaper.fit,
+        "--wallpaper-surface-background": `color-mix(in srgb, var(--mock-main-background) ${Math.round((1 - config.wallpaper.backgroundTransparency) * 10_000) / 100}%, transparent)`,
+      }
+    : {}
   return (
     <section aria-labelledby="pageTitle" className="preview-panel min-w-0">
       <div className="preview-heading">
@@ -170,14 +191,18 @@ export function PreviewSection({
               </button>
             ))}
           </div>
-          <div className="mock-window" data-theme={effectiveTheme}>
+          <div
+            className={`mock-window${wallpaperVisible ? " has-wallpaper" : ""}`}
+            data-theme={effectiveTheme}
+            style={wallpaperStyle}
+          >
             <aside
               ref={placementStageRefs.sidebar}
-              className={`mock-sidebar surface-stage${activeSurface === "sidebar" ? " is-active" : ""}`}
-              onClick={() => onActiveSurfaceChange("sidebar")}
+              className={`mock-sidebar surface-stage${activeTab === "sidebar" ? " is-active" : ""}`}
+              onClick={() => onActiveTabChange("sidebar")}
             >
               <SurfaceIllustration
-                active={activeSurface === "sidebar"}
+                active={activeTab === "sidebar"}
                 config={config.surfaces.sidebar}
                 dragging={illustrationDragging === "sidebar"}
                 enabled={backgroundSurfaceIsEnabled(config, "sidebar")}
@@ -209,12 +234,12 @@ export function PreviewSection({
 
             <div
               ref={placementStageRefs.main}
-              className={`mock-main surface-stage${activeSurface === "main" ? " is-active" : ""}`}
-              onClick={() => onActiveSurfaceChange("main")}
+              className={`mock-main surface-stage${activeTab === "main" ? " is-active" : ""}`}
+              onClick={() => onActiveTabChange("main")}
             >
               <div className="stage-grid" aria-hidden="true" />
               <SurfaceIllustration
-                active={activeSurface === "main"}
+                active={activeTab === "main"}
                 config={config.surfaces.main}
                 dragging={illustrationDragging === "main"}
                 enabled={backgroundSurfaceIsEnabled(config, "main")}
@@ -227,10 +252,16 @@ export function PreviewSection({
               {!hasVisibleImage && (
                 <div className="preview-empty">
                   <span aria-hidden="true">＋</span>
-                  <strong>尚未选择人物图片</strong>
-                  <p>选择一张图片，或直接拖入当前分区</p>
+                  <strong>
+                    {activeTab === "wallpaper" ? "尚未选择背景图片" : "尚未选择人物图片"}
+                  </strong>
+                  <p>
+                    {activeTab === "wallpaper"
+                      ? "选择一张图片，或直接拖入以设置全局背景"
+                      : "选择一张图片，或直接拖入当前分区"}
+                  </p>
                   <button type="button" onClick={onChooseImage}>
-                    选择人物图片
+                    {activeTab === "wallpaper" ? "选择背景图片" : "选择人物图片"}
                   </button>
                 </div>
               )}

@@ -24,11 +24,13 @@ test("setAllBackgroundsEnabled synchronizes the master and both surface switches
   )
 
   assert.equal(disabled.enabled, false)
+  assert.equal(disabled.wallpaper.enabled, false)
   assert.equal(disabled.surfaces.main.enabled, false)
   assert.equal(disabled.surfaces.sidebar.enabled, false)
 
   const enabled = setAllBackgroundsEnabled(disabled, true)
   assert.equal(enabled.enabled, true)
+  assert.equal(enabled.wallpaper.enabled, true)
   assert.equal(enabled.surfaces.main.enabled, true)
   assert.equal(enabled.surfaces.sidebar.enabled, true)
 })

@@ -224,6 +224,22 @@ label:has(input:focus-visible) {
   --mock-text: #26312c;
 }
 
+.mock-window.has-wallpaper {
+  background-image: var(--wallpaper-image);
+  background-position: var(--wallpaper-position);
+  background-repeat: no-repeat;
+  background-size: var(--wallpaper-size);
+}
+
+.mock-window.has-wallpaper .mock-main {
+  background: var(--wallpaper-surface-background);
+}
+
+.mock-window.has-wallpaper .mock-sidebar {
+  background: color-mix(in srgb, var(--mock-sidebar-background) 70%, transparent);
+  backdrop-filter: blur(4px);
+}
+
 .preview-theme-switcher {
   position: absolute;
   top: calc(7% + 10px);
@@ -522,7 +538,7 @@ label:has(input:focus-visible) {
 
 .surface-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 3px;
   margin-top: 22px;
   padding: 3px;
@@ -682,6 +698,26 @@ label:has(input:focus-visible) {
   color: var(--color-leaf);
   background: rgb(45 106 79 / 0.055);
   border-color: rgb(45 106 79 / 0.35);
+}
+
+.select-field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.select-field select {
+  min-width: 112px;
+  padding: 7px 9px;
+  color: var(--color-ink);
+  background: var(--color-paper);
+  border: 1px solid rgb(24 37 31 / 0.14);
+  border-radius: 0;
+  font: inherit;
 }
 .power-switch {
   display: inline-flex;

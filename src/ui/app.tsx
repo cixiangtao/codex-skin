@@ -4,6 +4,7 @@ import type { ChangeEvent, DragEvent, FormEvent, PointerEvent as ReactPointerEve
 import { ControlPanel } from "./components/control-panel.tsx"
 import { PreviewSection } from "./components/preview-section.tsx"
 import { SurfaceSettingsPanel } from "./components/surface-settings-panel.tsx"
+import { WallpaperSettingsPanel } from "./components/wallpaper-settings-panel.tsx"
 import {
   acceptedImageTypes,
   api,
@@ -20,11 +21,13 @@ import {
 import type {
   BackgroundConfig,
   BackgroundStatus,
+  BackgroundSettingsTab,
   BackgroundSurface,
   BusyAction,
   PreviewTheme,
   StatePayload,
   SurfaceBackgroundConfig,
+  WallpaperConfig,
 } from "./types.ts"
 
 interface IllustrationDragState {
@@ -42,14 +45,16 @@ interface IllustrationDragState {
   surface: BackgroundSurface
 }
 
-type SurfaceValues<Value> = Record<BackgroundSurface, Value>
+type ImageTargetValues<Value> = Record<BackgroundSettingsTab, Value>
 
-const emptyImageSources = (): SurfaceValues<string | undefined> => ({
+const emptyImageSources = (): ImageTargetValues<string | undefined> => ({
+  wallpaper: undefined,
   main: undefined,
   sidebar: undefined,
 })
 
-const emptyImageLabels = (): SurfaceValues<string> => ({
+const emptyImageLabels = (): ImageTargetValues<string> => ({
+  wallpaper: "尚未选择图片",
   main: "尚未选择图片",
   sidebar: "尚未选择图片",
 })
@@ -62,7 +67,7 @@ export function App() {
   const [config, setConfig] = useState<BackgroundConfig>(defaultConfig)
   const [status, setStatus] = useState<BackgroundStatus | null>(null)
   const [connectionFailed, setConnectionFailed] = useState(false)
-  const [activeSurface, setActiveSurface] = useState<BackgroundSurface>("main")
+  const [activeTab, setActiveTab] = useState<BackgroundSettingsTab>("wallpaper")
   const [previewTheme, setPreviewTheme] = useState<PreviewTheme>("system")
   const [systemDark, setSystemDark] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
@@ -75,7 +80,7 @@ export function App() {
   const [fileDragging, setFileDragging] = useState(false)
   const [illustrationDragging, setIllustrationDragging] = useState<BackgroundSurface>()
   const imageInputRef = useRef<HTMLInputElement>(null)
-  const imageInputSurfaceRef = useRef<BackgroundSurface>("main")
+  const imageInputTargetRef = useRef<BackgroundSettingsTab>("wallpaper")
   const mainStageRef = useRef<HTMLDivElement>(null)
   const sidebarStageRef = useRef<HTMLDivElement>(null)
   const toastTimerRef = useRef<number | undefined>(undefined)
@@ -96,10 +101,12 @@ export function App() {
     setStatus(payload.status)
     setConnectionFailed(false)
     setImageLabels({
+      wallpaper: imageLabel(payload.config.wallpaper.image),
       main: imageLabel(payload.config.surfaces.main.image),
       sidebar: imageLabel(payload.config.surfaces.sidebar.image),
     })
     setImageSources({
+      wallpaper: payload.config.wallpaper.image ? `/api/wallpaper/image?v=${now}` : undefined,
       main: payload.config.surfaces.main.image ? `/api/surfaces/main/image?v=${now}` : undefined,
       sidebar: payload.config.surfaces.sidebar.image
         ? `/api/surfaces/sidebar/image?v=${now}`
@@ -149,6 +156,16 @@ export function App() {
         ...current.surfaces,
         [surface]: { ...current.surfaces[surface], [key]: value },
       },
+    }))
+  }
+
+  const updateWallpaperConfig = <Key extends keyof WallpaperConfig>(
+    key: Key,
+    value: WallpaperConfig[Key],
+  ) => {
+    setConfig((current) => ({
+      ...current,
+      wallpaper: { ...current.wallpaper, [key]: value },
     }))
   }
 
@@ -203,7 +220,7 @@ export function App() {
     if (!stageBounds) return
     const illustrationBounds = event.currentTarget.getBoundingClientRect()
     const surfaceConfig = config.surfaces[surface]
-    setActiveSurface(surface)
+    setActiveTab(surface)
     illustrationDragRef.current = {
       illustrationHeight: illustrationBounds.height,
       illustrationWidth: illustrationBounds.width,
@@ -283,9 +300,32 @@ export function App() {
     }
   }
 
+  const saveWallpaperSettings = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setBusyAction("save")
+    try {
+      const { backgroundTransparency, fit, positionX, positionY } = config.wallpaper
+      const payload = await api<StatePayload>("/api/config", {
+        method: "PUT",
+        body: JSON.stringify({
+          wallpaper: { backgroundTransparency, fit, positionX, positionY },
+        }),
+      })
+      applyState(payload)
+      const message = describeApplication(payload.application)
+      setActionNote(message)
+      notify(message)
+    } catch (error) {
+      notify(describeError(error), true)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   const applyEnabled = async (enabled: boolean) => {
     const previousEnabled = {
       global: config.enabled,
+      wallpaper: config.wallpaper.enabled,
       main: config.surfaces.main.enabled,
       sidebar: config.surfaces.sidebar.enabled,
     }
@@ -304,6 +344,7 @@ export function App() {
       setConfig((current) => ({
         ...current,
         enabled: previousEnabled.global,
+        wallpaper: { ...current.wallpaper, enabled: previousEnabled.wallpaper },
         surfaces: {
           main: { ...current.surfaces.main, enabled: previousEnabled.main },
           sidebar: { ...current.surfaces.sidebar, enabled: previousEnabled.sidebar },
@@ -336,6 +377,27 @@ export function App() {
     }
   }
 
+  const applyWallpaperEnabled = async (enabled: boolean) => {
+    const previousEnabled = config.wallpaper.enabled
+    updateWallpaperConfig("enabled", enabled)
+    setBusyAction("surface-toggle")
+    try {
+      const payload = await api<StatePayload>("/api/config", {
+        method: "PUT",
+        body: JSON.stringify({ wallpaper: { enabled } }),
+      })
+      applyState(payload)
+      const message = describeApplication(payload.application)
+      setActionNote(message)
+      notify(message)
+    } catch (error) {
+      updateWallpaperConfig("enabled", previousEnabled)
+      notify(describeError(error), true)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   const startBackground = async () => {
     setBusyAction("start")
     try {
@@ -350,7 +412,7 @@ export function App() {
       } catch (error) {
         if (apiErrorCode(error) !== "RESTART_REQUIRED") throw error
         const confirmed = window.confirm(
-          "Codex 正在运行，但未启用人物背景连接。是否立即重启 Codex 并启动背景模式？\n\nCodex 可能会再次询问是否退出，请在 Codex 中确认；本页会一直等到 Codex 完全退出。",
+          "Codex 正在运行，但未启用背景连接。是否立即重启 Codex 并启动背景模式？\n\nCodex 可能会再次询问是否退出，请在 Codex 中确认；本页会一直等到 Codex 完全退出。",
         )
         if (!confirmed) {
           throw new Error("Codex Skin 已停止启动。请先完全退出 Codex，再重新运行。")
@@ -373,7 +435,7 @@ export function App() {
     }
   }
 
-  const uploadImage = async (surface: BackgroundSurface, file?: File) => {
+  const uploadImage = async (target: BackgroundSettingsTab, file?: File) => {
     if (!file) return
     if (file.size === 0) {
       notify("所选图片为空，请重新选择。", true)
@@ -388,14 +450,18 @@ export function App() {
       return
     }
 
-    const previousImageSource = imageSources[surface]
-    const previousImageLabel = imageLabels[surface]
+    const previousImageSource = imageSources[target]
+    const previousImageLabel = imageLabels[target]
     const temporaryUrl = URL.createObjectURL(file)
-    setImageSources((current) => ({ ...current, [surface]: temporaryUrl }))
-    setImageLabels((current) => ({ ...current, [surface]: file.name }))
-    notify(`正在更新${backgroundSurfaces[surface].label}人物插图……`)
+    setImageSources((current) => ({ ...current, [target]: temporaryUrl }))
+    setImageLabels((current) => ({ ...current, [target]: file.name }))
+    const targetLabel =
+      target === "wallpaper" ? "全局背景" : `${backgroundSurfaces[target].label}人物插图`
+    notify(`正在更新${targetLabel}……`)
     try {
-      const payload = await api<StatePayload>(`/api/surfaces/${surface}/image`, {
+      const endpoint =
+        target === "wallpaper" ? "/api/wallpaper/image" : `/api/surfaces/${target}/image`
+      const payload = await api<StatePayload>(endpoint, {
         method: "POST",
         body: file,
         headers: { "content-type": file.type },
@@ -403,10 +469,10 @@ export function App() {
       applyState(payload)
       const message = describeApplication(payload.application)
       setActionNote(message)
-      notify(`人物插图已更换。${message}`)
+      notify(`${target === "wallpaper" ? "全局背景" : "人物插图"}已更换。${message}`)
     } catch (error) {
-      setImageSources((current) => ({ ...current, [surface]: previousImageSource }))
-      setImageLabels((current) => ({ ...current, [surface]: previousImageLabel }))
+      setImageSources((current) => ({ ...current, [target]: previousImageSource }))
+      setImageLabels((current) => ({ ...current, [target]: previousImageLabel }))
       notify(describeError(error), true)
     } finally {
       URL.revokeObjectURL(temporaryUrl)
@@ -415,13 +481,13 @@ export function App() {
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget
-    void uploadImage(imageInputSurfaceRef.current, input.files?.[0]).finally(() => {
+    void uploadImage(imageInputTargetRef.current, input.files?.[0]).finally(() => {
       input.value = ""
     })
   }
 
   const chooseImage = () => {
-    imageInputSurfaceRef.current = activeSurface
+    imageInputTargetRef.current = activeTab
     imageInputRef.current?.click()
   }
 
@@ -443,18 +509,17 @@ export function App() {
     event.preventDefault()
     dragDepthRef.current = 0
     setFileDragging(false)
-    void uploadImage(activeSurface, event.dataTransfer.files[0])
+    void uploadImage(activeTab, event.dataTransfer.files[0])
   }
 
-  const activeConfig = config.surfaces[activeSurface]
-  const activeSurfaceLabel = backgroundSurfaces[activeSurface].label
+  const activeSurface = activeTab === "wallpaper" ? null : activeTab
   const canStartBackground = Boolean(
     config.enabled && status?.imageReadable && !status.cdpAvailable,
   )
   const connection = connectionDetails(status, connectionFailed)
-  const advice = imageAdvice(
-    imageLabels[activeSurface] === "尚未选择图片" ? null : imageLabels[activeSurface],
-  )
+  const advice = activeSurface
+    ? imageAdvice(imageLabels[activeSurface] === "尚未选择图片" ? null : imageLabels[activeSurface])
+    : imageAdvice(null)
   const effectiveTheme = previewTheme === "system" ? (systemDark ? "dark" : "light") : previewTheme
 
   return (
@@ -479,13 +544,13 @@ export function App() {
 
         <div className="workspace-layout grid gap-8 py-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10 xl:gap-14 xl:py-9">
           <PreviewSection
-            activeSurface={activeSurface}
+            activeTab={activeTab}
             config={config}
             effectiveTheme={effectiveTheme}
             fileDragging={fileDragging}
             illustrationDragging={illustrationDragging}
             imageSources={imageSources}
-            onActiveSurfaceChange={setActiveSurface}
+            onActiveTabChange={setActiveTab}
             onChooseImage={chooseImage}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
@@ -498,29 +563,45 @@ export function App() {
             previewTheme={previewTheme}
           />
           <ControlPanel
-            activeSurface={activeSurface}
+            activeTab={activeTab}
             busyAction={busyAction}
             config={config}
-            onActiveSurfaceChange={setActiveSurface}
+            onActiveTabChange={setActiveTab}
             onEnabledChange={applyEnabled}
           >
-            <SurfaceSettingsPanel
-              actionNote={actionNote}
-              advice={advice}
-              busyAction={busyAction}
-              canStartBackground={canStartBackground}
-              config={activeConfig}
-              imageLabel={imageLabels[activeSurface]}
-              imageSource={imageSources[activeSurface]}
-              label={activeSurfaceLabel}
-              onChooseImage={chooseImage}
-              onConfigChange={(key, value) => updateSurfaceConfig(activeSurface, key, value)}
-              onEnabledChange={(enabled) => applySurfaceEnabled(activeSurface, enabled)}
-              onPositionChange={(x, y) => updatePosition(activeSurface, x, y)}
-              onSave={saveSettings}
-              onStart={startBackground}
-              surface={activeSurface}
-            />
+            {activeSurface ? (
+              <SurfaceSettingsPanel
+                actionNote={actionNote}
+                advice={advice}
+                busyAction={busyAction}
+                canStartBackground={canStartBackground}
+                config={config.surfaces[activeSurface]}
+                imageLabel={imageLabels[activeSurface]}
+                imageSource={imageSources[activeSurface]}
+                label={backgroundSurfaces[activeSurface].label}
+                onChooseImage={chooseImage}
+                onConfigChange={(key, value) => updateSurfaceConfig(activeSurface, key, value)}
+                onEnabledChange={(enabled) => applySurfaceEnabled(activeSurface, enabled)}
+                onPositionChange={(x, y) => updatePosition(activeSurface, x, y)}
+                onSave={saveSettings}
+                onStart={startBackground}
+                surface={activeSurface}
+              />
+            ) : (
+              <WallpaperSettingsPanel
+                actionNote={actionNote}
+                busyAction={busyAction}
+                canStartBackground={canStartBackground}
+                config={config.wallpaper}
+                imageLabel={imageLabels.wallpaper}
+                imageSource={imageSources.wallpaper}
+                onChooseImage={chooseImage}
+                onConfigChange={updateWallpaperConfig}
+                onEnabledChange={applyWallpaperEnabled}
+                onSave={saveWallpaperSettings}
+                onStart={startBackground}
+              />
+            )}
           </ControlPanel>
         </div>
       </main>

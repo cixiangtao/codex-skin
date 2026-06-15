@@ -1,24 +1,24 @@
 import type { ReactNode } from "react"
 
-import { backgroundSurfaces } from "../model.ts"
-import type { BackgroundConfig, BackgroundSurface, BusyAction } from "../types.ts"
+import { backgroundTabs } from "../model.ts"
+import type { BackgroundConfig, BackgroundSettingsTab, BusyAction } from "../types.ts"
 
 interface ControlPanelProps {
-  activeSurface: BackgroundSurface
+  activeTab: BackgroundSettingsTab
   busyAction: BusyAction
   children: ReactNode
   config: BackgroundConfig
-  onActiveSurfaceChange: (surface: BackgroundSurface) => void
+  onActiveTabChange: (tab: BackgroundSettingsTab) => void
   onEnabledChange: (enabled: boolean) => Promise<void>
 }
 
 /** Renders the global background controls and composes the selected surface settings. */
 export function ControlPanel({
-  activeSurface,
+  activeTab,
   busyAction,
   children,
   config,
-  onActiveSurfaceChange,
+  onActiveTabChange,
   onEnabledChange,
 }: ControlPanelProps) {
   return (
@@ -43,21 +43,21 @@ export function ControlPanel({
       </div>
 
       <div className="surface-tabs" role="tablist" aria-label="背景分区">
-        {Object.values(backgroundSurfaces).map((surface) => {
-          const surfaceState = config.surfaces[surface.value]
-          const active = activeSurface === surface.value
+        {backgroundTabs.map((tab) => {
+          const state = tab.value === "wallpaper" ? config.wallpaper : config.surfaces[tab.value]
+          const active = activeTab === tab.value
           return (
             <button
-              key={surface.value}
+              key={tab.value}
               className={active ? "is-active" : undefined}
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => onActiveSurfaceChange(surface.value)}
+              onClick={() => onActiveTabChange(tab.value)}
             >
-              <span>{surface.label}</span>
+              <span>{tab.label}</span>
               <i
-                className={surfaceState.enabled && surfaceState.image ? "is-configured" : undefined}
+                className={state.enabled && state.image ? "is-configured" : undefined}
                 aria-hidden="true"
               />
             </button>
