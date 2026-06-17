@@ -99,6 +99,7 @@ test("TargetSessionManager reuses sessions and reinjects after reload", async ()
     static instance: PersistentWebSocket | undefined
     readyState = 0
     injectionCount = 0
+    styleHashPresent = true
 
     constructor() {
       super()
@@ -115,8 +116,12 @@ test("TargetSessionManager reuses sessions and reinjects after reload", async ()
         method: string
         params?: { expression?: string }
       }
-      const probe = request.params?.expression?.includes("href.startsWith")
-      if (request.method === "Runtime.evaluate" && !probe) this.injectionCount += 1
+      const targetProbe = request.params?.expression?.includes("href.startsWith")
+      const styleProbe = request.params?.expression?.includes("?.dataset.codexSkinHash ===")
+      if (request.method === "Runtime.evaluate" && !targetProbe && !styleProbe) {
+        this.injectionCount += 1
+        this.styleHashPresent = true
+      }
       queueMicrotask(() => {
         const event = new Event("message")
         Object.defineProperty(event, "data", {
@@ -124,7 +129,15 @@ test("TargetSessionManager reuses sessions and reinjects after reload", async ()
             id: request.id,
             result:
               request.method === "Runtime.evaluate"
-                ? { result: { value: probe ? true : { installed: true } } }
+                ? {
+                    result: {
+                      value: targetProbe
+                        ? true
+                        : styleProbe
+                          ? this.styleHashPresent
+                          : { installed: true },
+                    },
+                  }
                 : {},
           }),
         })
@@ -167,9 +180,13 @@ test("TargetSessionManager reuses sessions and reinjects after reload", async ()
   await manager.synchronize("body { color: red; }")
   assert.equal(PersistentWebSocket.instance?.injectionCount, 1)
 
+  if (PersistentWebSocket.instance) PersistentWebSocket.instance.styleHashPresent = false
+  await manager.synchronize("body { color: red; }")
+  assert.equal(PersistentWebSocket.instance?.injectionCount, 2)
+
   PersistentWebSocket.instance?.emitReload()
   await new Promise<void>((resolve) => setTimeout(resolve, 180))
-  assert.equal(PersistentWebSocket.instance?.injectionCount, 2)
+  assert.equal(PersistentWebSocket.instance?.injectionCount, 3)
   manager.close()
 })
 

@@ -78,6 +78,12 @@ export function backgroundCssHash(css: string) {
   return createHash("sha256").update(css).digest("hex").slice(0, 16)
 }
 
+function buildStyleHashProbeExpression(hash: string) {
+  const serializedId = serializeForJavaScript(BACKGROUND_STYLE_ID)
+  const serializedHash = serializeForJavaScript(hash)
+  return `document.getElementById(${serializedId})?.dataset.codexSkinHash === ${serializedHash}`
+}
+
 export function buildInjectionExpression(css: string) {
   const serializedCss = serializeForJavaScript(css)
   const serializedId = serializeForJavaScript(BACKGROUND_STYLE_ID)
@@ -343,7 +349,13 @@ export class TargetSessionManager {
     }
 
     const hash = backgroundCssHash(this.css)
-    if (session.cssHash === hash) return
+    if (session.cssHash === hash) {
+      const currentStyleMatches = await evaluateOnConnection<boolean>(
+        session.connection,
+        buildStyleHashProbeExpression(hash),
+      )
+      if (currentStyleMatches) return
+    }
     await evaluateOnConnection(session.connection, this.expression)
     session.cssHash = hash
   }
