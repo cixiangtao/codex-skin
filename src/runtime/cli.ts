@@ -225,6 +225,7 @@ function logRuntimeSummary(
 async function runDevelopmentServer(entryPath: string, io: CommandIo) {
   const instance = await listenSettingsServer({
     authenticatedRedirectUrl: DEVELOPMENT_UI_URL,
+    backgroundsRoot: path.resolve("public/backgrounds"),
     entryPath,
     idleTimeoutMs: 24 * 60 * 60 * 1000,
     port: DEVELOPMENT_API_PORT,

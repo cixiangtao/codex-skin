@@ -3,6 +3,7 @@ import type { ChildProcess, SpawnOptions } from "node:child_process"
 export const BACKGROUND_SURFACES = ["main", "sidebar"] as const
 
 export type BackgroundSurface = (typeof BACKGROUND_SURFACES)[number]
+export type BackgroundImageTarget = BackgroundSurface | "wallpaper"
 
 export interface SurfaceBackgroundConfig {
   enabled: boolean

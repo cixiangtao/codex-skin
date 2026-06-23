@@ -148,6 +148,107 @@ test("settings server redirects an authenticated development session to the Vite
   }
 })
 
+test("settings server lists and applies bundled backgrounds from each module directory", async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-"))
+  const uiRoot = path.join(dataDirectory, "ui")
+  const mainDirectory = path.join(uiRoot, "backgrounds", "main")
+  const wallpaperDirectory = path.join(uiRoot, "backgrounds", "wallpaper")
+  await mkdir(mainDirectory, { recursive: true })
+  await mkdir(wallpaperDirectory, { recursive: true })
+  const transparentPng = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAFAgIAX8jx0gAAAABJRU5ErkJggg==",
+    "base64",
+  )
+  await writeFile(path.join(mainDirectory, "角色_02.png"), transparentPng)
+  await writeFile(path.join(mainDirectory, "character-01.png"), transparentPng)
+  await writeFile(path.join(mainDirectory, "notes.txt"), "not an image")
+  await writeFile(
+    path.join(wallpaperDirectory, "night.webp"),
+    Buffer.from([0x52, 0x49, 0x46, 0x46]),
+  )
+
+  const instance = await listenSettingsServer({
+    dataDirectory,
+    entryPath: "/tmp/codex-skin.ts",
+    token: "test-token",
+    uiRoot,
+    isCdpAvailableImpl: async () => false,
+  })
+  try {
+    const { cookie, origin } = await authenticatedSession(instance.url)
+    const stateResponse = await fetch(`${origin}/api/state`, { headers: { cookie } })
+    assert.equal(stateResponse.status, 200)
+    const state = (await stateResponse.json()) as {
+      bundledBackgrounds: {
+        main: {
+          items: Array<{ file: string; label: string; url: string }>
+          selected: string | null
+        }
+        sidebar: { items: unknown[] }
+        wallpaper: { items: Array<{ file: string }> }
+      }
+    }
+    assert.deepEqual(
+      state.bundledBackgrounds.main.items.map(({ file, label }) => ({ file, label })),
+      [
+        { file: "角色_02.png", label: "角色 02" },
+        { file: "character-01.png", label: "character 01" },
+      ],
+    )
+    assert.equal(state.bundledBackgrounds.main.selected, null)
+    assert.deepEqual(state.bundledBackgrounds.sidebar.items, [])
+    assert.deepEqual(state.bundledBackgrounds.wallpaper.items, [
+      { file: "night.webp", label: "night", url: "/backgrounds/wallpaper/night.webp" },
+    ])
+
+    const assetResponse = await fetch(`${origin}${state.bundledBackgrounds.main.items[0]?.url}`, {
+      headers: { cookie },
+    })
+    assert.equal(assetResponse.status, 200)
+    assert.equal(assetResponse.headers.get("content-type"), "image/png")
+    assert.deepEqual(Buffer.from(await assetResponse.arrayBuffer()), transparentPng)
+
+    const selectResponse = await fetch(`${origin}/api/bundled-backgrounds/main`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ file: "character-01.png" }),
+    })
+    assert.equal(selectResponse.status, 200)
+    const selected = (await selectResponse.json()) as {
+      bundledBackgrounds: { main: { selected: string | null } }
+      config: { surfaces: { main: { enabled: boolean; image: string } } }
+    }
+    assert.equal(selected.bundledBackgrounds.main.selected, "character-01.png")
+    assert.equal(selected.config.surfaces.main.enabled, true)
+    assert.match(selected.config.surfaces.main.image, /images\/builtin-main-character-01\.png$/)
+    assert.deepEqual(await readFile(selected.config.surfaces.main.image), transparentPng)
+
+    const uploadResponse = await fetch(`${origin}/api/surfaces/main/image`, {
+      method: "POST",
+      headers: { cookie, "content-type": "image/png" },
+      body: transparentPng,
+    })
+    assert.equal(uploadResponse.status, 200)
+    const uploaded = (await uploadResponse.json()) as {
+      bundledBackgrounds: { main: { selected: string | null } }
+      config: { surfaces: { main: { image: string } } }
+    }
+    assert.equal(uploaded.bundledBackgrounds.main.selected, null)
+    assert.match(uploaded.config.surfaces.main.image, /images\/background-main-\d+\.png$/)
+    await assert.rejects(() => access(selected.config.surfaces.main.image), { code: "ENOENT" })
+
+    const invalidResponse = await fetch(`${origin}/api/bundled-backgrounds/main`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ file: "../wallpaper/night.webp" }),
+    })
+    assert.equal(invalidResponse.status, 400)
+  } finally {
+    await new Promise<void>((resolve) => instance.server.close(() => resolve()))
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})
+
 test("settings server saves controls and accepts a local image upload", async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-"))
   const originalImage = path.join(dataDirectory, "original.jpg")
