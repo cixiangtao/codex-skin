@@ -1,6 +1,19 @@
 export type BackgroundSurface = "main" | "sidebar"
 export type BackgroundSettingsTab = "wallpaper" | BackgroundSurface
 
+export interface BundledBackgroundOption {
+  file: string
+  label: string
+  url: string
+}
+
+export interface BundledBackgroundGroup {
+  items: BundledBackgroundOption[]
+  selected: string | null
+}
+
+export type BundledBackgroundCatalog = Record<BackgroundSettingsTab, BundledBackgroundGroup>
+
 export interface SurfaceBackgroundConfig {
   enabled: boolean
   image: string | null
@@ -42,11 +55,12 @@ export interface BackgroundApplication {
 
 export interface StatePayload {
   application?: BackgroundApplication
+  bundledBackgrounds: BundledBackgroundCatalog
   config: BackgroundConfig
   status: BackgroundStatus
 }
 
-export type BusyAction = "save" | "start" | "surface-toggle" | "toggle" | null
+export type BusyAction = "image" | "save" | "start" | "surface-toggle" | "toggle" | null
 export type PreviewTheme = "system" | "light" | "dark"
 export type RangeKey =
   | "backgroundTransparency"

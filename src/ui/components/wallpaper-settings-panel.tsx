@@ -1,11 +1,13 @@
 import type { FormEvent } from "react"
 
-import type { BusyAction, WallpaperConfig } from "../types.ts"
+import type { BundledBackgroundGroup, BusyAction, WallpaperConfig } from "../types.ts"
+import { BackgroundImagePicker } from "./background-image-picker.tsx"
 import { RangeField } from "./range-field.tsx"
 
 interface WallpaperSettingsPanelProps {
   actionNote: string
   busyAction: BusyAction
+  bundledBackgrounds: BundledBackgroundGroup
   canStartBackground: boolean
   config: WallpaperConfig
   imageLabel: string
@@ -14,6 +16,7 @@ interface WallpaperSettingsPanelProps {
   onConfigChange: <Key extends keyof WallpaperConfig>(key: Key, value: WallpaperConfig[Key]) => void
   onEnabledChange: (enabled: boolean) => Promise<void>
   onSave: (event: FormEvent<HTMLFormElement>) => Promise<void>
+  onSelectBundledBackground: (file: string) => Promise<void>
   onStart: () => Promise<void>
 }
 
@@ -21,6 +24,7 @@ interface WallpaperSettingsPanelProps {
 export function WallpaperSettingsPanel({
   actionNote,
   busyAction,
+  bundledBackgrounds,
   canStartBackground,
   config,
   imageLabel,
@@ -29,6 +33,7 @@ export function WallpaperSettingsPanel({
   onConfigChange,
   onEnabledChange,
   onSave,
+  onSelectBundledBackground,
   onStart,
 }: WallpaperSettingsPanelProps) {
   return (
@@ -53,29 +58,20 @@ export function WallpaperSettingsPanel({
         </label>
       </div>
 
-      <section className="image-setting" aria-labelledby="wallpaperImageSettingTitle">
-        <div className="image-setting-heading">
-          <h3 id="wallpaperImageSettingTitle">壁纸图片</h3>
-          <span>选择后立即应用</span>
-        </div>
-        <div className="image-setting-preview">
-          <div className={`image-thumbnail${imageSource ? "" : " is-empty"}`} aria-hidden="true">
-            {imageSource ? (
-              <img src={imageSource} alt="" width="56" height="56" />
-            ) : (
-              <span>＋</span>
-            )}
-          </div>
-          <div className="image-setting-copy min-w-0">
-            <strong title={config.image || ""}>{imageLabel}</strong>
-            <small>支持 PNG、JPEG、WebP、GIF、AVIF，最大 25 MB</small>
-          </div>
-        </div>
-        <button className="panel-upload-button" type="button" onClick={onChooseImage}>
-          <span>{imageSource ? "更换壁纸" : "选择壁纸"}</span>
-          <small>拖入预览区也会更新全局背景</small>
-        </button>
-      </section>
+      <BackgroundImagePicker
+        advice={{ text: "支持 PNG、JPEG、WebP、GIF、AVIF，最大 25 MB" }}
+        busyAction={busyAction}
+        bundledBackgrounds={bundledBackgrounds}
+        bundledLabel="内置壁纸"
+        imageLabel={imageLabel}
+        imageSource={imageSource}
+        onChooseImage={onChooseImage}
+        onSelectBundledBackground={onSelectBundledBackground}
+        title="壁纸图片"
+        uploadHint="也可以拖入左侧预览区"
+        uploadLabel={imageSource ? "更换本地壁纸" : "上传本地壁纸"}
+        variant="wallpaper"
+      />
 
       <form onSubmit={(event) => void onSave(event)}>
         <fieldset className="control-group">

@@ -1,13 +1,20 @@
 import type { FormEvent } from "react"
 
 import { axisAnchor } from "../../shared/background-position.ts"
-import type { BackgroundSurface, BusyAction, SurfaceBackgroundConfig } from "../types.ts"
+import type {
+  BackgroundSurface,
+  BundledBackgroundGroup,
+  BusyAction,
+  SurfaceBackgroundConfig,
+} from "../types.ts"
+import { BackgroundImagePicker } from "./background-image-picker.tsx"
 import { RangeField } from "./range-field.tsx"
 
 interface SurfaceSettingsPanelProps {
   actionNote: string
   advice: { opaque: boolean; text: string }
   busyAction: BusyAction
+  bundledBackgrounds: BundledBackgroundGroup
   canStartBackground: boolean
   config: SurfaceBackgroundConfig
   imageLabel: string
@@ -21,6 +28,7 @@ interface SurfaceSettingsPanelProps {
   onEnabledChange: (enabled: boolean) => Promise<void>
   onPositionChange: (x: number, y: number) => void
   onSave: (event: FormEvent<HTMLFormElement>) => Promise<void>
+  onSelectBundledBackground: (file: string) => Promise<void>
   onStart: () => Promise<void>
   surface: BackgroundSurface
 }
@@ -48,6 +56,7 @@ export function SurfaceSettingsPanel({
   actionNote,
   advice,
   busyAction,
+  bundledBackgrounds,
   canStartBackground,
   config,
   imageLabel,
@@ -58,11 +67,10 @@ export function SurfaceSettingsPanel({
   onEnabledChange,
   onPositionChange,
   onSave,
+  onSelectBundledBackground,
   onStart,
   surface,
 }: SurfaceSettingsPanelProps) {
-  const imageSettingTitle = `${surface}ImageSettingTitle`
-
   return (
     <section aria-label={`${label}布景设置`}>
       <div className="surface-heading">
@@ -85,31 +93,23 @@ export function SurfaceSettingsPanel({
         </label>
       </div>
 
-      <section className="image-setting" aria-labelledby={imageSettingTitle}>
-        <div className="image-setting-heading">
-          <h3 id={imageSettingTitle}>{label}人物图片</h3>
-          <span>选择后立即应用</span>
-        </div>
-        <div className="image-setting-preview">
-          <div className={`image-thumbnail${imageSource ? "" : " is-empty"}`} aria-hidden="true">
-            {imageSource ? (
-              <img src={imageSource} alt="" width="56" height="56" />
-            ) : (
-              <span>＋</span>
-            )}
-          </div>
-          <div className="image-setting-copy min-w-0">
-            <strong title={config.image || ""}>{imageLabel}</strong>
-            <small className={advice.opaque ? "is-warning" : undefined}>
-              {imageSource ? advice.text : "支持 PNG、JPEG、WebP、GIF、AVIF，最大 25 MB"}
-            </small>
-          </div>
-        </div>
-        <button className="panel-upload-button" type="button" onClick={onChooseImage}>
-          <span>{imageSource ? "更换图片" : "选择图片"}</span>
-          <small>拖入预览区也会更新当前分区</small>
-        </button>
-      </section>
+      <BackgroundImagePicker
+        advice={{
+          warning: imageSource ? advice.opaque : false,
+          text: imageSource ? advice.text : "支持 PNG、JPEG、WebP、GIF、AVIF，最大 25 MB",
+        }}
+        busyAction={busyAction}
+        bundledBackgrounds={bundledBackgrounds}
+        bundledLabel="内置人物"
+        imageLabel={imageLabel}
+        imageSource={imageSource}
+        onChooseImage={onChooseImage}
+        onSelectBundledBackground={onSelectBundledBackground}
+        title={`${label}人物图片`}
+        uploadHint="也可以拖入左侧预览区"
+        uploadLabel={imageSource ? "更换本地图片" : "上传本地图片"}
+        variant="illustration"
+      />
 
       <form onSubmit={(event) => void onSave(event)}>
         <fieldset className="control-group">

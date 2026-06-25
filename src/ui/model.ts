@@ -3,9 +3,16 @@ import type {
   BackgroundConfig,
   BackgroundSurface,
   BackgroundStatus,
+  BundledBackgroundCatalog,
   PreviewTheme,
   StatePayload,
 } from "./types.ts"
+
+export const emptyBundledBackgroundCatalog = (): BundledBackgroundCatalog => ({
+  wallpaper: { items: [], selected: null },
+  main: { items: [], selected: null },
+  sidebar: { items: [], selected: null },
+})
 
 export const acceptedImageTypes = new Set([
   "image/png",

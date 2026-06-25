@@ -15,6 +15,7 @@ import {
   defaultConfig,
   describeApplication,
   describeError,
+  emptyBundledBackgroundCatalog,
   imageAdvice,
   setAllBackgroundsEnabled,
 } from "./model.ts"
@@ -66,6 +67,7 @@ const imageLabel = (image: string | null) =>
 export function App() {
   const [config, setConfig] = useState<BackgroundConfig>(defaultConfig)
   const [status, setStatus] = useState<BackgroundStatus | null>(null)
+  const [bundledBackgrounds, setBundledBackgrounds] = useState(emptyBundledBackgroundCatalog)
   const [connectionFailed, setConnectionFailed] = useState(false)
   const [activeTab, setActiveTab] = useState<BackgroundSettingsTab>("wallpaper")
   const [previewTheme, setPreviewTheme] = useState<PreviewTheme>("system")
@@ -99,11 +101,16 @@ export function App() {
     const now = Date.now()
     setConfig(payload.config)
     setStatus(payload.status)
+    setBundledBackgrounds(payload.bundledBackgrounds)
     setConnectionFailed(false)
     setImageLabels({
-      wallpaper: imageLabel(payload.config.wallpaper.image),
-      main: imageLabel(payload.config.surfaces.main.image),
-      sidebar: imageLabel(payload.config.surfaces.sidebar.image),
+      wallpaper:
+        payload.bundledBackgrounds.wallpaper.selected || imageLabel(payload.config.wallpaper.image),
+      main:
+        payload.bundledBackgrounds.main.selected || imageLabel(payload.config.surfaces.main.image),
+      sidebar:
+        payload.bundledBackgrounds.sidebar.selected ||
+        imageLabel(payload.config.surfaces.sidebar.image),
     })
     setImageSources({
       wallpaper: payload.config.wallpaper.image ? `/api/wallpaper/image?v=${now}` : undefined,
@@ -450,6 +457,7 @@ export function App() {
       return
     }
 
+    setBusyAction("image")
     const previousImageSource = imageSources[target]
     const previousImageLabel = imageLabels[target]
     const temporaryUrl = URL.createObjectURL(file)
@@ -476,6 +484,28 @@ export function App() {
       notify(describeError(error), true)
     } finally {
       URL.revokeObjectURL(temporaryUrl)
+      setBusyAction(null)
+    }
+  }
+
+  const selectBundledBackground = async (target: BackgroundSettingsTab, file: string) => {
+    setBusyAction("image")
+    const targetLabel =
+      target === "wallpaper" ? "全局背景" : `${backgroundSurfaces[target].label}人物插图`
+    notify(`正在更新${targetLabel}……`)
+    try {
+      const payload = await api<StatePayload>(`/api/bundled-backgrounds/${target}`, {
+        method: "POST",
+        body: JSON.stringify({ file }),
+      })
+      applyState(payload)
+      const message = describeApplication(payload.application)
+      setActionNote(message)
+      notify(`已选择内置素材“${file}”。${message}`)
+    } catch (error) {
+      notify(describeError(error), true)
+    } finally {
+      setBusyAction(null)
     }
   }
 
@@ -574,6 +604,7 @@ export function App() {
                 actionNote={actionNote}
                 advice={advice}
                 busyAction={busyAction}
+                bundledBackgrounds={bundledBackgrounds[activeSurface]}
                 canStartBackground={canStartBackground}
                 config={config.surfaces[activeSurface]}
                 imageLabel={imageLabels[activeSurface]}
@@ -584,6 +615,7 @@ export function App() {
                 onEnabledChange={(enabled) => applySurfaceEnabled(activeSurface, enabled)}
                 onPositionChange={(x, y) => updatePosition(activeSurface, x, y)}
                 onSave={saveSettings}
+                onSelectBundledBackground={(file) => selectBundledBackground(activeSurface, file)}
                 onStart={startBackground}
                 surface={activeSurface}
               />
@@ -591,6 +623,7 @@ export function App() {
               <WallpaperSettingsPanel
                 actionNote={actionNote}
                 busyAction={busyAction}
+                bundledBackgrounds={bundledBackgrounds.wallpaper}
                 canStartBackground={canStartBackground}
                 config={config.wallpaper}
                 imageLabel={imageLabels.wallpaper}
@@ -599,6 +632,7 @@ export function App() {
                 onConfigChange={updateWallpaperConfig}
                 onEnabledChange={applyWallpaperEnabled}
                 onSave={saveWallpaperSettings}
+                onSelectBundledBackground={(file) => selectBundledBackground("wallpaper", file)}
                 onStart={startBackground}
               />
             )}
