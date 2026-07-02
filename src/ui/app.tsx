@@ -5,6 +5,7 @@ import { ControlPanel } from "./components/control-panel.tsx"
 import { PreviewSection } from "./components/preview-section.tsx"
 import { SurfaceSettingsPanel } from "./components/surface-settings-panel.tsx"
 import { WallpaperSettingsPanel } from "./components/wallpaper-settings-panel.tsx"
+import { cn } from "./lib/cn.ts"
 import {
   acceptedImageTypes,
   api,
@@ -554,25 +555,31 @@ export function App() {
 
   return (
     <>
-      <main className="app-shell mx-auto w-full max-w-[1520px] px-5 py-5 sm:px-8 lg:px-12 lg:py-7">
-        <header className="flex items-center justify-between border-b border-ink/12 pb-4">
+      <main className="mx-auto min-h-screen w-full max-w-[1520px] px-5 py-5 sm:px-8 lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden lg:px-12 lg:py-7">
+        <header className="flex shrink-0 items-center justify-between border-b border-ink/12 pb-4">
           <a
             className="group flex items-center gap-3 text-inherit no-underline"
             href="/"
             aria-label="Codex Skin 设置首页"
           >
-            <span className="logo-mark" aria-hidden="true">
+            <span
+              className="relative grid size-9 place-items-center rounded-full border border-ink/20 shadow-[inset_0_0_0_5px_rgb(255_253_247/0.8)] before:absolute before:size-1.5 before:[translate:-8px_-4px] before:rounded-full before:bg-leaf before:content-[''] after:absolute after:size-1.5 after:[translate:8px_4px] after:rounded-full after:bg-leaf after:content-[''] [&>i]:absolute [&>i]:size-2 [&>i]:rounded-full [&>i]:bg-citrus"
+              aria-hidden="true"
+            >
               <i />
             </span>
             <strong className="text-[11px] font-semibold tracking-[0.2em]">CODEX SKIN</strong>
           </a>
-          <div className="connection" data-state={connection.state}>
+          <div
+            className="inline-flex items-center gap-2 rounded-full border border-ink/12 bg-paper/55 px-3 py-2 text-[10px] text-ink/56 [&>i]:size-[7px] [&>i]:rounded-full [&>i]:bg-[#9a9f98] data-[state=connected]:[&>i]:bg-[#2d8a5e] data-[state=connected]:[&>i]:shadow-[0_0_0_4px_rgb(45_138_94/0.12)] data-[state=error]:[&>i]:bg-[#c84f43] data-[state=ready]:[&>i]:bg-citrus"
+            data-state={connection.state}
+          >
             <i aria-hidden="true" />
             <span>{connection.text}</span>
           </div>
         </header>
 
-        <div className="workspace-layout grid gap-8 py-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10 xl:gap-14 xl:py-9">
+        <div className="grid gap-8 py-7 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[minmax(0,1fr)] lg:gap-10 lg:overflow-hidden xl:gap-14 xl:py-9">
           <PreviewSection
             activeTab={activeTab}
             config={config}
@@ -642,7 +649,7 @@ export function App() {
 
       <input
         ref={imageInputRef}
-        className="visually-hidden-input"
+        className="pointer-events-none fixed size-px overflow-hidden [clip:rect(0_0_0_0)]"
         name="characterImage"
         type="file"
         tabIndex={-1}
@@ -651,7 +658,11 @@ export function App() {
       />
 
       <div
-        className={`toast${toast ? " is-visible" : ""}${toast?.error ? " is-error" : ""}`}
+        className={cn(
+          "invisible fixed right-6 bottom-6 z-20 max-w-[min(390px,calc(100vw-48px))] translate-y-2 border-l-4 border-citrus bg-ink px-4 py-[13px] text-[11px] leading-normal text-paper opacity-0 shadow-[0_18px_40px_rgb(24_37_31/0.18)] transition duration-180",
+          toast && "visible translate-y-0 opacity-100",
+          toast?.error && "border-l-[#d25848]",
+        )}
         role="status"
         aria-live="polite"
       >

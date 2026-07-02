@@ -45,9 +45,11 @@
     "verify:package": "bun scripts/verify-package.ts"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
     "picocolors": "^1.1.1",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
