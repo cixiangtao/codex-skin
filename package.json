@@ -38,6 +38,7 @@
     "check": "vp check",
     "format": "vp fmt . --write",
     "lint": "vp lint .",
+    "lint:fix": "vp check --fix",
     "release": "release-it",
     "release:check": "bun run check && bun run test && npm pack --dry-run",
     "test": "vp test run",
