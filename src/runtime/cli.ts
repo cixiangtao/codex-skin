@@ -16,6 +16,11 @@ import { removeFromAllTargets, verifyAllTargets } from "./injector.ts"
 import type { TargetVerification } from "./injector.ts"
 import { appExecutableExists, confirmCodexRestart, isCodexRunning } from "./macos.ts"
 import {
+  runBackgroundRestartWorker,
+  startBackgroundRestartWorker,
+  stopBackgroundRestartWorker,
+} from "./restart-worker.ts"
+import {
   ensureSettingsServer,
   listenSettingsServer,
   openSettingsPage,
@@ -46,10 +51,15 @@ interface CommandIo {
 }
 
 interface CliOptions {
-  colors?: typeof pc
+  colors?: ReturnType<typeof pc.createColors>
   confirmCodexRestartImpl?: () => Promise<boolean>
+  configuredCdpIsReadyImpl?: typeof configuredCdpIsReady
   entryPath?: string
   io?: CommandIo
+  isCodexRunningImpl?: typeof isCodexRunning
+  openSettingsImpl?: typeof openSettings
+  startBackgroundRestartWorkerImpl?: typeof startBackgroundRestartWorker
+  startConfiguredBackgroundImpl?: typeof startConfiguredBackground
   version?: string
 }
 
@@ -97,7 +107,7 @@ Usage:
   codex-skin configure [options]   Update settings from the terminal
   codex-skin doctor                Check the local runtime
   codex-skin verify [--reload]     Verify the visible background
-  codex-skin stop                  Stop background and settings services
+  codex-skin stop                  Stop all Codex Skin background services
 
 Options:
   --image PATH                 PNG, JPEG, WebP, GIF, or AVIF up to 25 MB
@@ -207,7 +217,7 @@ export function formatRuntimeSummary(
   return [
     `${colors.bold(colors.magenta("Codex Skin"))} ${colors.dim(`v${version}`)}`,
     "",
-    `  ${label("Settings")} ${running} ${colors.dim("·")} PID ${colors.cyan(settingsPid)} ${colors.dim("·")} ${colors.cyan(`127.0.0.1:${settingsPort}`)}`,
+    `  ${label("Settings")} ${running} ${colors.dim("·")} PID ${colors.cyan(settingsPid)} ${colors.dim("·")} ${colors.cyan(`http://127.0.0.1:${settingsPort}/`)}`,
     `  ${label("Background")} ${backgroundStatus}`,
     `  ${label("Codex CDP")} ${colors.cyan(`127.0.0.1:${cdpPort}`)}`,
     `  ${label("Stop")} ${colors.yellow(stopCommand)}`,
@@ -242,25 +252,12 @@ async function runDevelopmentServer(entryPath: string, io: CommandIo) {
 
 async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
   const config = await readConfig()
-  if (configuredBackgroundImages(config).length === 0) {
-    const server = await openSettings(entryPath)
-    logRuntimeSummary(
-      io,
-      {
-        cdpPort: config.port,
-        daemonPid: await readDaemonPid(),
-        settingsPid: server.pid,
-        settingsPort: server.port,
-      },
-      options,
-    )
-    io.log("Choose a character image in the settings page to continue.")
-    return 0
-  }
 
   let restartRunningCodex = false
-  if (await isCodexRunning(config.appPath)) {
-    const { httpReady, inspection } = await configuredCdpIsReady(config)
+  if (await (options.isCodexRunningImpl || isCodexRunning)(config.appPath)) {
+    const { httpReady, inspection } = await (
+      options.configuredCdpIsReadyImpl || configuredCdpIsReady
+    )(config)
     if (!httpReady && inspection.state !== "occupied") {
       restartRunningCodex = await (options.confirmCodexRestartImpl || confirmCodexRestart)()
       if (!restartRunningCodex) {
@@ -275,8 +272,33 @@ async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
     }
   }
 
-  const server = await openSettings(entryPath)
-  const result = await startConfiguredBackground(config, { entryPath, restartRunningCodex })
+  const server = await (options.openSettingsImpl || openSettings)(entryPath)
+  if (restartRunningCodex) {
+    logRuntimeSummary(
+      io,
+      {
+        cdpPort: config.port,
+        daemonPid: null,
+        settingsPid: server.pid,
+        settingsPort: server.port,
+      },
+      options,
+    )
+    io.log(
+      (options.colors || pc).yellow(
+        "Codex restart scheduled. Codex Skin will keep waiting in the background, then relaunch Codex after it exits.",
+      ),
+    )
+    const startRestartWorker =
+      options.startBackgroundRestartWorkerImpl || startBackgroundRestartWorker
+    startRestartWorker({ entryPath })
+    return 0
+  }
+
+  const result = await (options.startConfiguredBackgroundImpl || startConfiguredBackground)(
+    config,
+    { entryPath },
+  )
   logRuntimeSummary(
     io,
     {
@@ -438,6 +460,16 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
       io.log(`Injected ${result.targets ?? 0} Codex window(s).`)
       return 0
     }
+    case "restart-worker":
+      await runBackgroundRestartWorker({
+        task: async () => {
+          await startConfiguredBackground(await readConfig(), {
+            entryPath,
+            restartRunningCodex: true,
+          })
+        },
+      })
+      return 0
     case "inject": {
       const config = await readConfig()
       await requireConfiguredCdp(config)
@@ -446,7 +478,11 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
     }
     case "stop": {
       const config = await readConfig()
-      const [daemonPid, settingsServerPid] = await Promise.all([stopDaemon(), stopSettingsServer()])
+      const [daemonPid, settingsServerPid, restartWorkerPid] = await Promise.all([
+        stopDaemon(),
+        stopSettingsServer(),
+        stopBackgroundRestartWorker(),
+      ])
       if ((await configuredCdpIsReady(config)).httpReady) {
         await removeFromAllTargets({ port: config.port })
       }
@@ -459,6 +495,11 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
         settingsServerPid
           ? `Stopped settings server ${settingsServerPid}.`
           : "Settings server was not running.",
+      )
+      io.log(
+        restartWorkerPid
+          ? `Stopped restart worker ${restartWorkerPid}.`
+          : "Restart worker was not running.",
       )
       return 0
     }

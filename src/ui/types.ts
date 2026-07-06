@@ -48,7 +48,7 @@ export interface BackgroundStatus {
 }
 
 export interface BackgroundApplication {
-  mode?: "injected" | "started" | "removed" | "saved"
+  mode?: "injected" | "started" | "removed" | "restarting" | "saved"
   reason?: "cdp-unavailable" | "image-missing"
   targets?: number
 }

@@ -27,8 +27,15 @@ import {
 import { readConfig, resolveDataDirectory, writeConfig } from "./config.ts"
 import { imageFileToDataUrl } from "./css.ts"
 import { readDaemonPid } from "./daemon.ts"
-import { inspectProcess } from "./process.ts"
-import type { ProcessIdentity } from "./process.ts"
+import {
+  codexSkinProcessCommandMatches,
+  inspectProcess,
+  listProcesses,
+  processIdentityMatches,
+  terminateProcesses,
+} from "./process.ts"
+import type { ProcessIdentity, ProcessSummary } from "./process.ts"
+import { startBackgroundRestartWorker } from "./restart-worker.ts"
 import type {
   BackgroundConfig,
   BackgroundConfigInput,
@@ -93,6 +100,7 @@ type KillProcess = (pid: number, signal: NodeJS.Signals | 0) => boolean
 interface SettingsProcessOptions extends DataDirectoryOptions {
   inspectProcessImpl?: (pid: number) => Promise<ProcessIdentity | null>
   killProcessImpl?: KillProcess
+  listProcessesImpl?: () => Promise<ProcessSummary[]>
 }
 
 interface SettingsOptions extends SettingsProcessOptions {
@@ -103,6 +111,7 @@ interface SettingsOptions extends SettingsProcessOptions {
   isCdpAvailableImpl?: (options: { port: number }) => Promise<boolean>
   port?: number
   spawnImpl?: SpawnImplementation
+  startBackgroundRestartWorkerImpl?: typeof startBackgroundRestartWorker
   startConfiguredBackgroundImpl?: typeof startConfiguredBackground
   token?: string
   uiRoot?: string
@@ -127,11 +136,16 @@ interface SettingsServerState {
   token: string
 }
 
-function runtimePath(options: DataDirectoryOptions = {}) {
-  return path.join(
-    options.dataDirectory || resolveDataDirectory(options.env),
-    "settings-server.json",
-  )
+interface SettingsServerIdentity extends ProcessIdentity {
+  pid: number
+}
+
+function runtimePaths(options: DataDirectoryOptions = {}) {
+  const dataDirectory = options.dataDirectory || resolveDataDirectory(options.env)
+  return {
+    lock: path.join(dataDirectory, "settings-server.lock"),
+    state: path.join(dataDirectory, "settings-server.json"),
+  }
 }
 
 export function settingsServerIdentityMatches(
@@ -146,6 +160,74 @@ export function settingsServerIdentityMatches(
   }
   if (!state.process) return true
   return actual.command === state.process.command && actual.startedAt === state.process.startedAt
+}
+
+async function readSettingsServerIdentity(filePath: string) {
+  try {
+    return JSON.parse(await readFile(filePath, "utf8")) as SettingsServerIdentity
+  } catch (error) {
+    if (errorCode(error) === "ENOENT" || error instanceof SyntaxError) return null
+    throw error
+  }
+}
+
+async function readVerifiedSettingsServerIdentity(
+  filePath: string,
+  options: SettingsProcessOptions,
+) {
+  const identity = await readSettingsServerIdentity(filePath)
+  if (!identity) return null
+  const actual = await (options.inspectProcessImpl || inspectProcess)(identity.pid)
+  return processIdentityMatches(identity, actual) ? identity : null
+}
+
+async function claimSettingsServerLock(
+  identity: SettingsServerIdentity,
+  options: SettingsProcessOptions,
+) {
+  const lockPath = runtimePaths(options).lock
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await writeFile(lockPath, `${JSON.stringify(identity, null, 2)}\n`, {
+        flag: "wx",
+        mode: 0o600,
+      })
+      return true
+    } catch (error) {
+      if (errorCode(error) !== "EEXIST") throw error
+      if (await readVerifiedSettingsServerIdentity(lockPath, options)) return false
+      await rm(lockPath, { force: true })
+    }
+  }
+  return false
+}
+
+async function releaseSettingsServerLock(pid: number, options: SettingsProcessOptions) {
+  const lockPath = runtimePaths(options).lock
+  const owner = await readSettingsServerIdentity(lockPath)
+  if (owner?.pid === pid) await rm(lockPath, { force: true })
+}
+
+/** Returns every independently launched settings server except the caller. */
+export function settingsServerPidsFromProcesses(
+  processes: ProcessSummary[],
+  currentPid = process.pid,
+) {
+  return processes
+    .filter(
+      ({ command, pid }) =>
+        pid !== currentPid && codexSkinProcessCommandMatches(command, "settings-server"),
+    )
+    .map(({ pid }) => pid)
+}
+
+async function discoveredSettingsServerPids(options: SettingsProcessOptions) {
+  const activeDataDirectory = path.resolve(
+    options.dataDirectory || resolveDataDirectory(options.env),
+  )
+  const defaultDataDirectory = path.resolve(resolveDataDirectory(options.env))
+  if (!options.listProcessesImpl && activeDataDirectory !== defaultDataDirectory) return []
+  return settingsServerPidsFromProcesses(await (options.listProcessesImpl || listProcesses)())
 }
 
 function securityHeaders(response: ServerResponse) {
@@ -505,12 +587,16 @@ export function createSettingsHttpServer(options: SettingsOptions) {
   const uiRoot = options.uiRoot || defaultUiRoot
   const backgroundsRoot = options.backgroundsRoot || path.join(uiRoot, "backgrounds")
   const runtimeOptions = { ...options, backgroundsRoot, dataDirectory, uiRoot }
-  let idleTimer: ReturnType<typeof setTimeout> | undefined
+  let idleTimer: ReturnType<typeof setTimeout>
 
-  const server = http.createServer(async (request, response) => {
+  const armIdleTimer = () => {
     clearTimeout(idleTimer)
     idleTimer = setTimeout(() => server.close(), options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS)
     idleTimer.unref()
+  }
+
+  const server = http.createServer(async (request, response) => {
+    armIdleTimer()
     securityHeaders(response)
     const url = new URL(request.url || "/", "http://127.0.0.1")
 
@@ -597,9 +683,26 @@ export function createSettingsHttpServer(options: SettingsOptions) {
           "restartRunningCodex" in input &&
           input.restartRunningCodex === true
         const config = await readConfig({ dataDirectory })
+        if (restartRunningCodex) {
+          const payload = await statePayload(config, runtimeOptions)
+          response.once("finish", () => {
+            try {
+              const startRestartWorker =
+                options.startBackgroundRestartWorkerImpl || startBackgroundRestartWorker
+              startRestartWorker({ entryPath: options.entryPath })
+            } catch (error) {
+              console.error("Unable to hand off the Codex restart:", error)
+            }
+          })
+          sendJson(response, 202, {
+            ...payload,
+            application: { applied: false, mode: "restarting" },
+          })
+          return
+        }
         const application = await (
           options.startConfiguredBackgroundImpl || startConfiguredBackground
-        )(config, { ...runtimeOptions, restartRunningCodex })
+        )(config, runtimeOptions)
         const activeConfig = await readConfig({ dataDirectory })
         sendJson(response, 200, {
           ...(await statePayload(activeConfig, runtimeOptions)),
@@ -618,6 +721,7 @@ export function createSettingsHttpServer(options: SettingsOptions) {
   })
 
   server.once("close", () => clearTimeout(idleTimer))
+  armIdleTimer()
   return { server, token, dataDirectory }
 }
 
@@ -642,30 +746,40 @@ export async function listenSettingsServer(options: SettingsOptions) {
 }
 
 export async function runSettingsServerDaemon(options: SettingsOptions) {
+  const dataDirectory = options.dataDirectory || resolveDataDirectory(options.env)
+  await mkdir(dataDirectory, { recursive: true, mode: 0o700 })
   const processIdentity = await (options.inspectProcessImpl || inspectProcess)(process.pid)
   if (!processIdentity) throw new Error("Unable to verify the settings server process.")
-  const instance = await listenSettingsServer(options)
-  const statePath = runtimePath({ dataDirectory: instance.dataDirectory })
-  await mkdir(instance.dataDirectory, { recursive: true, mode: 0o700 })
-  await writeFile(
-    statePath,
-    `${JSON.stringify({ ...instance.state, process: processIdentity }, null, 2)}\n`,
-    { mode: 0o600 },
-  )
+  const identity = { ...processIdentity, pid: process.pid }
+  if (!(await claimSettingsServerLock(identity, options))) return
 
-  const close = () => instance.server.close()
-  process.once("SIGTERM", close)
-  process.once("SIGINT", close)
-  await new Promise<void>((resolve) => instance.server.once("close", resolve))
-  const current = await readSettingsServerState({ dataDirectory: instance.dataDirectory })
-  if (!current || current.pid === process.pid) await unlink(statePath).catch(() => undefined)
+  const statePath = runtimePaths({ dataDirectory }).state
+  try {
+    const instance = await listenSettingsServer({ ...options, dataDirectory })
+    await writeFile(
+      statePath,
+      `${JSON.stringify({ ...instance.state, process: processIdentity }, null, 2)}\n`,
+      { mode: 0o600 },
+    )
+
+    const close = () => instance.server.close()
+    process.once("SIGTERM", close)
+    process.once("SIGINT", close)
+    await new Promise<void>((resolve) => instance.server.once("close", resolve))
+  } finally {
+    const current = await readSettingsServerIdentity(statePath)
+    if (current?.pid === process.pid) await unlink(statePath).catch(() => undefined)
+    await releaseSettingsServerLock(process.pid, options)
+  }
 }
 
 export async function readSettingsServerState(
   options: SettingsProcessOptions = {},
 ): Promise<SettingsServerState | null> {
   try {
-    const state = JSON.parse(await readFile(runtimePath(options), "utf8")) as SettingsServerState
+    const state = JSON.parse(
+      await readFile(runtimePaths(options).state, "utf8"),
+    ) as SettingsServerState
     const actual = await (options.inspectProcessImpl || inspectProcess)(state.pid)
     return settingsServerIdentityMatches(state, actual) ? state : null
   } catch (error) {
@@ -676,10 +790,16 @@ export async function readSettingsServerState(
 
 /** Stops the detached settings server without signaling an unrelated recycled PID. */
 export async function stopSettingsServer(options: SettingsProcessOptions = {}) {
-  const state = await readSettingsServerState(options)
-  if (state) (options.killProcessImpl || process.kill)(state.pid, "SIGTERM")
-  await rm(runtimePath(options), { force: true })
-  return state?.pid ?? null
+  const paths = runtimePaths(options)
+  const [state, lockOwner, discovered] = await Promise.all([
+    readSettingsServerState(options),
+    readVerifiedSettingsServerIdentity(paths.lock, options),
+    discoveredSettingsServerPids(options),
+  ])
+  const pids = [...discovered, ...(state ? [state.pid] : []), ...(lockOwner ? [lockOwner.pid] : [])]
+  await terminateProcesses(pids, options)
+  await Promise.all([rm(paths.lock, { force: true }), rm(paths.state, { force: true })])
+  return state?.pid || lockOwner?.pid || pids[0] || null
 }
 
 export async function ensureSettingsServer({
@@ -687,19 +807,35 @@ export async function ensureSettingsServer({
   spawnImpl = spawn as SpawnImplementation,
   ...options
 }: SettingsOptions) {
-  const existing = await readSettingsServerState(options)
-  if (existing) {
+  const paths = runtimePaths(options)
+  const [existing, lockOwner, discovered] = await Promise.all([
+    readSettingsServerState(options),
+    readVerifiedSettingsServerIdentity(paths.lock, options),
+    discoveredSettingsServerPids(options),
+  ])
+  if (existing && lockOwner?.pid === existing.pid) {
+    await terminateProcesses(
+      discovered.filter((pid) => pid !== existing.pid),
+      options,
+    )
     return {
       ...existing,
       started: false,
       url: `http://127.0.0.1:${existing.port}/?token=${existing.token}`,
     }
   }
-  await rm(runtimePath(options), { force: true })
+  await terminateProcesses(
+    [...discovered, ...(existing ? [existing.pid] : []), ...(lockOwner ? [lockOwner.pid] : [])],
+    options,
+  )
+  await Promise.all([rm(paths.lock, { force: true }), rm(paths.state, { force: true })])
 
   const child = spawnImpl(process.execPath, [entryPath, "settings-server"], {
     detached: true,
-    env: process.env,
+    env: {
+      ...process.env,
+      CODEX_SKIN_HOME: options.dataDirectory || resolveDataDirectory(options.env),
+    },
     stdio: "ignore",
   })
   child.unref()
@@ -707,11 +843,14 @@ export async function ensureSettingsServer({
 
   const deadline = Date.now() + 5000
   while (Date.now() < deadline) {
-    const state = await readSettingsServerState(options)
-    if (state?.pid === child.pid) {
+    const [state, registeredLock] = await Promise.all([
+      readSettingsServerState(options),
+      readVerifiedSettingsServerIdentity(paths.lock, options),
+    ])
+    if (state && registeredLock?.pid === state.pid) {
       return {
         ...state,
-        started: true,
+        started: state.pid === child.pid,
         url: `http://127.0.0.1:${state.port}/?token=${state.token}`,
       }
     }

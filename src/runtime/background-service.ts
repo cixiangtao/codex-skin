@@ -159,10 +159,6 @@ export async function startConfiguredBackground(
   config: BackgroundConfig,
   options: ServiceOptions = {},
 ): Promise<BackgroundApplication> {
-  if (!config.enabled) throw new BackgroundStateError("DISABLED", "Codex Skin is disabled.")
-  if (!(await validateConfiguredImages(config))) {
-    throw new BackgroundStateError("IMAGE_MISSING", "No background image is configured.")
-  }
   if (!(await (options.appExecutableExistsImpl || appExecutableExists)(config.appPath))) {
     throw new BackgroundStateError(
       "APP_MISSING",
@@ -220,7 +216,10 @@ export async function startConfiguredBackground(
     }
   }
 
-  const targets = await injectConfiguredBackground(activeConfig, options)
+  const targets =
+    activeConfig.enabled && (await validateConfiguredImages(activeConfig))
+      ? await injectConfiguredBackground(activeConfig, options)
+      : 0
   if (!options.entryPath) throw new Error("The CLI entry path is required to start the daemon.")
   const daemon = await (options.ensureDaemonImpl || ensureDaemon)({ entryPath: options.entryPath })
   return { applied: true, mode: "started", port: activeConfig.port, targets, daemon }

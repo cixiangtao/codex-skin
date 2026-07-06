@@ -34,7 +34,7 @@ export const defaultConfig = {
   },
   surfaces: {
     main: {
-      enabled: true,
+      enabled: false,
       image: null,
       illustrationSize: 360,
       illustrationX: 82,
@@ -175,6 +175,9 @@ export function describeApplication(application?: BackgroundApplication) {
   if (application.mode === "started") {
     return `背景模式已启动，并应用到 ${application.targets ?? 0} 个 Codex 窗口。`
   }
+  if (application.mode === "restarting") {
+    return "重启任务已转交后台；Codex 完全退出后将自动重新启动并应用背景。"
+  }
   if (application.mode === "removed") return "背景已关闭，Codex 原生界面保持不变。"
   if (application.reason === "cdp-unavailable") {
     return "背景设置已保存。请正常退出 Codex，保持此页面开启，然后点击“启动背景模式”。"
@@ -183,9 +186,14 @@ export function describeApplication(application?: BackgroundApplication) {
   return "背景设置已保存。"
 }
 
-export function connectionDetails(status: BackgroundStatus | null, failed: boolean) {
+export function connectionDetails(
+  status: BackgroundStatus | null,
+  failed: boolean,
+  backgroundEnabled = true,
+) {
   if (failed) return { state: "error", text: "设置服务异常" } as const
   if (!status) return { state: "ready", text: "正在连接本地服务" } as const
+  if (!backgroundEnabled) return { state: "ready", text: "背景未启用" } as const
   if (!status.imageReadable) return { state: "error", text: "背景图片不可读取" } as const
   if (status.cdpAvailable && status.daemonRunning) {
     return { state: "connected", text: "背景已连接" } as const

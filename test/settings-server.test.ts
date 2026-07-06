@@ -5,10 +5,14 @@ import path from "node:path"
 
 import { test } from "vitest"
 
+import { BackgroundStateError } from "../src/runtime/background-service.ts"
 import { readConfig, writeConfig } from "../src/runtime/config.ts"
 import {
+  ensureSettingsServer,
   listenSettingsServer,
+  runSettingsServerDaemon,
   settingsServerIdentityMatches,
+  settingsServerPidsFromProcesses,
   stopSettingsServer,
 } from "../src/runtime/settings-server.ts"
 
@@ -74,14 +78,16 @@ test("stopSettingsServer signals the verified server and removes its state", asy
     }),
   )
   const signals: Array<[number, NodeJS.Signals | 0]> = []
+  let alive = true
 
   try {
     assert.equal(
       await stopSettingsServer({
         dataDirectory,
-        inspectProcessImpl: async () => processIdentity,
+        inspectProcessImpl: async () => (alive ? processIdentity : null),
         killProcessImpl: (pid, signal) => {
           signals.push([pid, signal])
+          alive = false
           return true
         },
       }),
@@ -92,6 +98,147 @@ test("stopSettingsServer signals the verified server and removes its state", asy
       code: "ENOENT",
     })
   } finally {
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})
+
+test("settings server discovery identifies direct orphan processes", () => {
+  assert.deepEqual(
+    settingsServerPidsFromProcesses(
+      [
+        { pid: 11, command: "/opt/bun /tmp/bin/codex-skin.ts settings-server" },
+        { pid: 12, command: "/opt/node /tmp/.bin/codex-skin settings-server" },
+        { pid: 13, command: "/opt/bun /tmp/bin/codex-skin.ts restart-worker" },
+      ],
+      11,
+    ),
+    [12],
+  )
+})
+
+test("ensureSettingsServer reuses the locked service and terminates orphan siblings", async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-ensure-"))
+  const processIdentity = {
+    command: "/opt/node /tmp/codex-skin.js settings-server",
+    startedAt: "Mon Jul 16 09:00:00 2026",
+  }
+  const state = {
+    pid: 42,
+    port: 4179,
+    process: processIdentity,
+    startedAt: "2026-07-16T01:00:00.000Z",
+    token: "test-token",
+  }
+  const alive = new Set([42, 43])
+  const killed: number[] = []
+
+  try {
+    await Promise.all([
+      writeFile(path.join(dataDirectory, "settings-server.json"), JSON.stringify(state)),
+      writeFile(
+        path.join(dataDirectory, "settings-server.lock"),
+        JSON.stringify({ ...processIdentity, pid: 42 }),
+      ),
+    ])
+    const result = await ensureSettingsServer({
+      dataDirectory,
+      entryPath: "/tmp/codex-skin.js",
+      inspectProcessImpl: async (pid) => {
+        if (!alive.has(pid)) return null
+        return pid === 42
+          ? processIdentity
+          : {
+              command: "/opt/node /tmp/other/codex-skin settings-server",
+              startedAt: "Mon Jul 16 09:01:00 2026",
+            }
+      },
+      killProcessImpl: (pid) => {
+        killed.push(pid)
+        alive.delete(pid)
+        return true
+      },
+      listProcessesImpl: async () => [
+        { pid: 42, command: processIdentity.command },
+        { pid: 43, command: "/opt/node /tmp/other/codex-skin settings-server" },
+      ],
+      spawnImpl: () => {
+        throw new Error("The locked settings server should be reused.")
+      },
+    })
+
+    assert.equal(result.pid, 42)
+    assert.equal(result.started, false)
+    assert.deepEqual(killed, [43])
+  } finally {
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})
+
+test("concurrent settings starts converge on one registered process", async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-concurrent-"))
+  const options = {
+    dataDirectory,
+    entryPath: path.resolve("bin/codex-skin.ts"),
+  }
+
+  try {
+    const [first, second] = await Promise.all([
+      ensureSettingsServer(options),
+      ensureSettingsServer(options),
+    ])
+    assert.equal(first.pid, second.pid)
+    assert.equal([first.started, second.started].filter(Boolean).length, 1)
+  } finally {
+    await stopSettingsServer({ dataDirectory })
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})
+
+test("settings daemon lock lets only one concurrent task listen", async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-lock-"))
+  const identity = {
+    command: `${process.execPath} /tmp/codex-skin.ts settings-server`,
+    startedAt: "Mon Jul 16 09:00:00 2026",
+  }
+
+  try {
+    await Promise.all([
+      runSettingsServerDaemon({
+        dataDirectory,
+        entryPath: "/tmp/codex-skin.ts",
+        idleTimeoutMs: 10,
+        inspectProcessImpl: async () => identity,
+      }),
+      runSettingsServerDaemon({
+        dataDirectory,
+        entryPath: "/tmp/codex-skin.ts",
+        idleTimeoutMs: 10,
+        inspectProcessImpl: async () => identity,
+      }),
+    ])
+    await assert.rejects(() => access(path.join(dataDirectory, "settings-server.lock")), {
+      code: "ENOENT",
+    })
+  } finally {
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})
+
+test("settings server expires even when no browser request arrives", async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-idle-"))
+  const instance = await listenSettingsServer({
+    dataDirectory,
+    entryPath: "/tmp/codex-skin.ts",
+    idleTimeoutMs: 10,
+  })
+
+  try {
+    await new Promise<void>((resolve) => instance.server.once("close", resolve))
+    assert.equal(instance.server.listening, false)
+  } finally {
+    if (instance.server.listening) {
+      await new Promise<void>((resolve) => instance.server.close(() => resolve()))
+    }
     await rm(dataDirectory, { recursive: true, force: true })
   }
 })
@@ -456,20 +603,25 @@ test("global enable updates synchronize both surface switches", async () => {
   }
 })
 
-test("settings server restarts Codex only after explicit confirmation", async () => {
+test("settings server hands an explicitly confirmed restart to a detached worker", async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-"))
   const image = path.join(dataDirectory, "wallpaper.jpg")
   await writeFile(image, Buffer.from([0xff, 0xd8, 0xff]))
   await writeConfig({ image }, { dataDirectory })
   const restartChoices: boolean[] = []
+  const restartWorkers: string[] = []
   const instance = await listenSettingsServer({
     dataDirectory,
     entryPath: "/tmp/codex-skin.ts",
     token: "test-token",
     isCdpAvailableImpl: async () => false,
     startConfiguredBackgroundImpl: async (_config, options) => {
-      restartChoices.push(options.restartRunningCodex === true)
-      return { applied: true, mode: "started", targets: 1 }
+      restartChoices.push(options?.restartRunningCodex === true)
+      throw new BackgroundStateError("RESTART_REQUIRED", "Restart required.")
+    },
+    startBackgroundRestartWorkerImpl: ({ entryPath }) => {
+      restartWorkers.push(entryPath)
+      return 91
     },
   })
   try {
@@ -478,15 +630,20 @@ test("settings server restarts Codex only after explicit confirmation", async ()
       method: "POST",
       headers: { cookie },
     })
-    assert.equal(firstResponse.status, 200)
+    assert.equal(firstResponse.status, 409)
 
     const confirmedResponse = await fetch(`${origin}/api/start`, {
       method: "POST",
       headers: { cookie, "content-type": "application/json" },
       body: JSON.stringify({ restartRunningCodex: true }),
     })
-    assert.equal(confirmedResponse.status, 200)
-    assert.deepEqual(restartChoices, [false, true])
+    assert.equal(confirmedResponse.status, 202)
+    const confirmedPayload = (await confirmedResponse.json()) as {
+      application: { applied: boolean; mode: string }
+    }
+    assert.deepEqual(confirmedPayload.application, { applied: false, mode: "restarting" })
+    assert.deepEqual(restartChoices, [false])
+    assert.deepEqual(restartWorkers, ["/tmp/codex-skin.ts"])
   } finally {
     await new Promise<void>((resolve) => instance.server.close(() => resolve()))
     await rm(dataDirectory, { recursive: true, force: true })

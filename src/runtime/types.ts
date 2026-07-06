@@ -80,7 +80,7 @@ export interface InjectionResult {
 export interface BackgroundApplication {
   applied: boolean
   daemon?: { pid: number } & Record<string, unknown>
-  mode: "injected" | "removed" | "saved" | "started"
+  mode: "injected" | "removed" | "restarting" | "saved" | "started"
   pid?: number | null
   port?: number
   reason?: "cdp-unavailable" | "image-missing"

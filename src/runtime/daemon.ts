@@ -60,7 +60,7 @@ export function codexSkinDaemonCommandMatches(command: string) {
   if (!/^codex-skin(?:\.(?:js|ts))?$/.test(entry)) return false
   if (tokens.length === 2) return true
   if (tokens.length !== 3) return false
-  return /^(?:bun|node)$/.test(path.basename(tokens[0]))
+  return /^(?:bun|node)$/.test(path.basename(tokens[0] || ""))
 }
 
 /** Returns every independently launched Codex Skin daemon except the caller. */

@@ -6,9 +6,38 @@ import { anchoredBackgroundPosition, axisAnchor } from "../src/shared/background
 import {
   backgroundPositionFromDrag,
   backgroundSurfaceIsEnabled,
+  connectionDetails,
   defaultConfig,
+  describeApplication,
   setAllBackgroundsEnabled,
 } from "../src/ui/model.ts"
+
+test("defaultConfig keeps every appearance layer disabled", () => {
+  assert.equal(defaultConfig.enabled, false)
+  assert.equal(defaultConfig.wallpaper.enabled, false)
+  assert.equal(defaultConfig.surfaces.main.enabled, false)
+  assert.equal(defaultConfig.surfaces.sidebar.enabled, false)
+})
+
+test("connectionDetails treats an intentionally disabled background as ready", () => {
+  assert.deepEqual(
+    connectionDetails(
+      {
+        cdpAvailable: true,
+        daemonRunning: true,
+        imageReadable: false,
+        surfaces: {
+          main: { imageReadable: false },
+          sidebar: { imageReadable: false },
+        },
+        wallpaper: { imageReadable: false },
+      },
+      false,
+      false,
+    ),
+    { state: "ready", text: "背景未启用" },
+  )
+})
 
 test("setAllBackgroundsEnabled synchronizes the master and both surface switches", () => {
   const disabled = setAllBackgroundsEnabled(
@@ -61,6 +90,13 @@ test("backgroundSurfaceIsEnabled preserves each surface switch when globally ena
 
   assert.equal(backgroundSurfaceIsEnabled(config, "main"), true)
   assert.equal(backgroundSurfaceIsEnabled(config, "sidebar"), false)
+})
+
+test("describeApplication explains a detached Codex restart handoff", () => {
+  assert.equal(
+    describeApplication({ mode: "restarting" }),
+    "重启任务已转交后台；Codex 完全退出后将自动重新启动并应用背景。",
+  )
 })
 
 test("backgroundPositionFromDrag follows the pointer when the illustration is smaller", () => {

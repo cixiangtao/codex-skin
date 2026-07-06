@@ -7,6 +7,7 @@ import { test } from "vitest"
 
 import {
   DEFAULT_CONFIG,
+  INITIAL_CONFIG,
   normalizeConfig,
   readConfig,
   resolveDataDirectory,
@@ -157,10 +158,15 @@ test("normalizeConfig migrates old default and custom ports", () => {
   assert.equal(normalizeConfig({ port: 9341, portMode: "auto" }).portMode, "auto")
 })
 
-test("readConfig returns defaults when no file exists", async () => {
+test("readConfig returns an all-disabled first-run state when no file exists", async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-"))
   try {
-    assert.deepEqual(await readConfig({ dataDirectory }), DEFAULT_CONFIG)
+    const config = await readConfig({ dataDirectory })
+    assert.deepEqual(config, INITIAL_CONFIG)
+    assert.equal(config.enabled, false)
+    assert.equal(config.wallpaper.enabled, false)
+    assert.equal(config.surfaces.main.enabled, false)
+    assert.equal(config.surfaces.sidebar.enabled, false)
   } finally {
     await rm(dataDirectory, { recursive: true, force: true })
   }

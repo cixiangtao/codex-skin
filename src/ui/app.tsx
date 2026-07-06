@@ -547,7 +547,7 @@ export function App() {
   const canStartBackground = Boolean(
     config.enabled && status?.imageReadable && !status.cdpAvailable,
   )
-  const connection = connectionDetails(status, connectionFailed)
+  const connection = connectionDetails(status, connectionFailed, config.enabled)
   const advice = activeSurface
     ? imageAdvice(imageLabels[activeSurface] === "尚未选择图片" ? null : imageLabels[activeSurface])
     : imageAdvice(null)

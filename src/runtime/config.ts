@@ -54,6 +54,17 @@ export const DEFAULT_CONFIG = Object.freeze({
   appPath: "/Applications/ChatGPT.app",
 } satisfies BackgroundConfig)
 
+/** First-run state keeps every optional appearance layer disabled until the user opts in. */
+export const INITIAL_CONFIG = Object.freeze({
+  ...DEFAULT_CONFIG,
+  enabled: false,
+  wallpaper: { ...DEFAULT_WALLPAPER_CONFIG, enabled: false },
+  surfaces: {
+    main: { ...DEFAULT_SURFACE_CONFIGS.main, enabled: false },
+    sidebar: { ...DEFAULT_SURFACE_CONFIGS.sidebar, enabled: false },
+  },
+} satisfies BackgroundConfig)
+
 export function resolveDataDirectory(env: NodeJS.ProcessEnv = process.env) {
   if (env.CODEX_SKIN_HOME) return path.resolve(env.CODEX_SKIN_HOME)
   // Keep the pre-rename override working for existing local development setups.
@@ -199,7 +210,7 @@ export async function readConfig(options: ConfigOptions = {}) {
     const raw = JSON.parse(await readFile(configPath, "utf8")) as unknown
     return normalizeConfig(raw, options)
   } catch (error) {
-    if (errorCode(error) === "ENOENT") return normalizeConfig(DEFAULT_CONFIG, options)
+    if (errorCode(error) === "ENOENT") return normalizeConfig(INITIAL_CONFIG, options)
     if (error instanceof SyntaxError) {
       throw new Error(`Invalid JSON in ${configPath}: ${error.message}`, { cause: error })
     }

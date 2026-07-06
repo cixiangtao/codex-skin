@@ -12,6 +12,37 @@ import {
   syncConfiguredBackground,
 } from "../src/runtime/background-service.ts"
 import { normalizeConfig } from "../src/runtime/config.ts"
+import { startBackgroundRestartWorker } from "../src/runtime/restart-worker.ts"
+
+test("startBackgroundRestartWorker survives the interactive Codex process tree", () => {
+  let unreferenced = false
+  let spawnCall: { args: string[]; command: string; options: unknown } | undefined
+  const pid = startBackgroundRestartWorker({
+    dataDirectory: "/tmp/codex-skin-worker",
+    entryPath: "/tmp/codex-skin.js",
+    spawnImpl: (command, args, options) => {
+      spawnCall = { args, command, options: options || {} }
+      return {
+        pid: 87,
+        unref: () => {
+          unreferenced = true
+        },
+      } as never
+    },
+  })
+
+  assert.equal(pid, 87)
+  assert.equal(unreferenced, true)
+  assert.deepEqual(spawnCall, {
+    args: ["/tmp/codex-skin.js", "restart-worker"],
+    command: process.execPath,
+    options: {
+      detached: true,
+      env: { ...process.env, CODEX_SKIN_HOME: "/tmp/codex-skin-worker" },
+      stdio: "ignore",
+    },
+  })
+})
 
 test("syncConfiguredBackground removes injected styling when disabled", async () => {
   const calls: string[] = []
@@ -150,6 +181,34 @@ test("startConfiguredBackground preserves a running Codex process", async () => 
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+test("startConfiguredBackground launches Codex and its daemon without an active background", async () => {
+  let launched = false
+  const calls: string[] = []
+  const result = await startConfiguredBackground(normalizeConfig(), {
+    entryPath: "/tmp/codex-skin.mjs",
+    appExecutableExistsImpl: async () => true,
+    ensureDaemonImpl: async () => {
+      calls.push("daemon")
+      return { pid: 91 }
+    },
+    injectAllTargetsImpl: async () => {
+      calls.push("inject")
+      return [{ ok: true }]
+    },
+    isCdpAvailableImpl: async () => launched,
+    isCodexRunningImpl: async () => false,
+    launchCodexImpl: () => {
+      calls.push("launch")
+      launched = true
+      return 42
+    },
+  })
+
+  assert.deepEqual(calls, ["launch", "daemon"])
+  assert.equal(result.mode, "started")
+  assert.equal(result.targets, 0)
 })
 
 test("startConfiguredBackground restarts Codex after the user confirms", async () => {
