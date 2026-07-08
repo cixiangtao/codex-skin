@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process"
 import { randomBytes } from "node:crypto"
 
+import { launchDevelopmentRuntime } from "./development-launch.ts"
+
 const DEVELOPMENT_API_URL = "http://127.0.0.1:4179/"
 const DEVELOPMENT_UI_URL = "http://127.0.0.1:4178/"
 const STARTUP_TIMEOUT_MS = 10_000
@@ -48,8 +50,13 @@ const firstExit = Promise.race(
 try {
   await Promise.all([waitForServer(DEVELOPMENT_UI_URL), waitForServer(DEVELOPMENT_API_URL)])
   const bootstrapUrl = `${DEVELOPMENT_API_URL}?token=${token}`
-  spawn("open", [bootstrapUrl], { detached: true, stdio: "ignore" }).unref()
-  console.log(`Development UI: ${DEVELOPMENT_UI_URL}`)
+  const settingsProcess = children.find(({ script }) => script === "dev:server")?.process
+  if (!settingsProcess?.pid) throw new Error("Unable to resolve the development API process.")
+  await launchDevelopmentRuntime({
+    apiPid: settingsProcess.pid,
+    bootstrapUrl,
+    uiUrl: DEVELOPMENT_UI_URL,
+  })
 } catch (error) {
   stopChildren()
   throw error
