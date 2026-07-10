@@ -10,7 +10,7 @@ import type {
 } from "../types.ts"
 import { BackgroundImagePicker } from "./background-image-picker.tsx"
 import { RangeField } from "./range-field.tsx"
-import { ToggleSwitch } from "./toggle-switch.tsx"
+import { SettingsPanelLayout } from "./settings-panel-layout.tsx"
 
 interface SurfaceSettingsPanelProps {
   actionNote: string
@@ -74,22 +74,20 @@ export function SurfaceSettingsPanel({
   surface,
 }: SurfaceSettingsPanelProps) {
   return (
-    <section aria-label={`${label}布景设置`}>
-      <div className="mt-[18px] flex items-center justify-between border-b border-ink/10 pb-3.5">
-        <div>
-          <strong className="block text-[11px]">{label}布景</strong>
-          <small className="mt-[3px] block text-[8px] text-ink/42">参数与其他分区互不影响</small>
-        </div>
-        <ToggleSwitch
-          checked={config.enabled}
-          compact
-          disabled={busyAction !== null}
-          label="显示"
-          name={`${surface}Enabled`}
-          onChange={(enabled) => void onEnabledChange(enabled)}
-        />
-      </div>
-
+    <SettingsPanelLayout
+      actionNote={actionNote}
+      ariaLabel={`${label}布景设置`}
+      busyAction={busyAction}
+      canStartBackground={canStartBackground}
+      description="参数与其他分区互不影响"
+      enabled={config.enabled}
+      enabledName={`${surface}Enabled`}
+      label={`${label}布景`}
+      onEnabledChange={onEnabledChange}
+      onSave={onSave}
+      onStart={onStart}
+      saveLabel="保存外观参数"
+    >
       <BackgroundImagePicker
         advice={{
           warning: imageSource ? advice.opaque : false,
@@ -108,123 +106,97 @@ export function SurfaceSettingsPanel({
         variant="illustration"
       />
 
-      <form onSubmit={(event) => void onSave(event)}>
-        <fieldset className="mt-6 border-0 p-0 [&>legend]:mb-3.5 [&>legend]:w-full [&>legend]:border-b [&>legend]:border-ink/10 [&>legend]:pb-[9px] [&>legend]:text-[9px] [&>legend]:font-bold [&>legend]:tracking-[0.16em] [&>legend]:text-ink/40 [&>legend]:uppercase">
-          <legend>外观</legend>
-          <RangeField
-            label="人物大小"
-            name="illustrationSize"
-            min={80}
-            max={1200}
-            step={10}
-            value={config.illustrationSize}
-            output={`${Math.round(config.illustrationSize)} px`}
-            onChange={(value) => onConfigChange("illustrationSize", value)}
-          />
-          <RangeField
-            label="透明度"
-            name="illustrationOpacity"
-            min={0}
-            max={1}
-            step={0.01}
-            value={config.illustrationOpacity}
-            output={`${Math.round(config.illustrationOpacity * 100)}%`}
-            onChange={(value) => onConfigChange("illustrationOpacity", value)}
-          />
-        </fieldset>
+      <fieldset className="mt-6 border-0 p-0 [&>legend]:mb-3.5 [&>legend]:w-full [&>legend]:border-b [&>legend]:border-ink/10 [&>legend]:pb-[9px] [&>legend]:text-[9px] [&>legend]:font-bold [&>legend]:tracking-[0.16em] [&>legend]:text-ink/40 [&>legend]:uppercase">
+        <legend>外观</legend>
+        <RangeField
+          label="人物大小"
+          name="illustrationSize"
+          min={80}
+          max={1200}
+          step={10}
+          value={config.illustrationSize}
+          output={`${Math.round(config.illustrationSize)} px`}
+          onChange={(value) => onConfigChange("illustrationSize", value)}
+        />
+        <RangeField
+          label="透明度"
+          name="illustrationOpacity"
+          min={0}
+          max={1}
+          step={0.01}
+          value={config.illustrationOpacity}
+          output={`${Math.round(config.illustrationOpacity * 100)}%`}
+          onChange={(value) => onConfigChange("illustrationOpacity", value)}
+        />
+      </fieldset>
 
-        <details className="group mt-[22px] border-y border-ink/10">
-          <summary className="flex cursor-pointer list-none items-center justify-between py-[13px] text-[10px] font-semibold text-ink/55 after:text-base after:leading-none after:font-normal after:text-leaf after:content-['+'] group-open:after:content-['−'] [&::-webkit-details-marker]:hidden">
-            高级设置
-          </summary>
-          <div className="pb-[18px]">
-            <RangeField
-              className="mt-[3px]"
-              label="边缘柔化"
-              name="illustrationBlur"
-              min={0}
-              max={30}
-              step={1}
-              value={config.illustrationBlur}
-              output={`${Math.round(config.illustrationBlur)} px`}
-              onChange={(value) => onConfigChange("illustrationBlur", value)}
-            />
-            <div className="mt-[22px]">
-              <span className="mb-2 block text-[10px]">精确位置</span>
-              <div
-                className="grid grid-cols-3 gap-[5px] border border-ink/10 bg-ink/[0.035] p-2"
-                aria-label={`${label}人物预设位置`}
-              >
-                {positionPresets.map((preset) => {
-                  const active =
-                    Math.abs(preset.x - config.illustrationX) <= 2 &&
-                    Math.abs(preset.y - config.illustrationY) <= 2
-                  return (
-                    <button
-                      key={preset.label}
-                      className={cn(
-                        "relative h-[25px] border-0 bg-transparent before:absolute before:top-1/2 before:left-1/2 before:size-1.5 before:-translate-1/2 before:rounded-full before:bg-ink/20 before:content-[''] before:transition before:duration-150 hover:before:size-2.5 hover:before:bg-citrus hover:before:shadow-[0_0_0_4px_rgb(240_168_59/0.15)]",
-                        active &&
-                          "before:size-2.5 before:bg-citrus before:shadow-[0_0_0_4px_rgb(240_168_59/0.15)]",
-                      )}
-                      type="button"
-                      aria-label={preset.label}
-                      aria-pressed={active}
-                      onClick={() => onPositionChange(preset.x, preset.y)}
-                    />
-                  )
-                })}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <RangeField
-                  label="横向 X"
-                  name="illustrationX"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={config.illustrationX}
-                  output={positionOutput(config.illustrationX, "左", "右")}
-                  onChange={(value) => onConfigChange("illustrationX", value)}
-                />
-                <RangeField
-                  label="纵向 Y"
-                  name="illustrationY"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={config.illustrationY}
-                  output={positionOutput(config.illustrationY, "上", "下")}
-                  onChange={(value) => onConfigChange("illustrationY", value)}
-                />
-              </div>
+      <details className="group mt-[22px] border-y border-ink/10">
+        <summary className="flex cursor-pointer list-none items-center justify-between py-[13px] text-[10px] font-semibold text-ink/55 after:text-base after:leading-none after:font-normal after:text-leaf after:content-['+'] group-open:after:content-['−'] [&::-webkit-details-marker]:hidden">
+          高级设置
+        </summary>
+        <div className="pb-[18px]">
+          <RangeField
+            className="mt-[3px]"
+            label="边缘柔化"
+            name="illustrationBlur"
+            min={0}
+            max={30}
+            step={1}
+            value={config.illustrationBlur}
+            output={`${Math.round(config.illustrationBlur)} px`}
+            onChange={(value) => onConfigChange("illustrationBlur", value)}
+          />
+          <div className="mt-[22px]">
+            <span className="mb-2 block text-[10px]">精确位置</span>
+            <div
+              className="grid grid-cols-3 gap-[5px] border border-ink/10 bg-ink/[0.035] p-2"
+              aria-label={`${label}人物预设位置`}
+            >
+              {positionPresets.map((preset) => {
+                const active =
+                  Math.abs(preset.x - config.illustrationX) <= 2 &&
+                  Math.abs(preset.y - config.illustrationY) <= 2
+                return (
+                  <button
+                    key={preset.label}
+                    className={cn(
+                      "relative h-[25px] border-0 bg-transparent before:absolute before:top-1/2 before:left-1/2 before:size-1.5 before:-translate-1/2 before:rounded-full before:bg-ink/20 before:content-[''] before:transition before:duration-150 hover:before:size-2.5 hover:before:bg-citrus hover:before:shadow-[0_0_0_4px_rgb(240_168_59/0.15)]",
+                      active &&
+                        "before:size-2.5 before:bg-citrus before:shadow-[0_0_0_4px_rgb(240_168_59/0.15)]",
+                    )}
+                    type="button"
+                    aria-label={preset.label}
+                    aria-pressed={active}
+                    onClick={() => onPositionChange(preset.x, preset.y)}
+                  />
+                )
+              })}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <RangeField
+                label="横向 X"
+                name="illustrationX"
+                min={0}
+                max={100}
+                step={1}
+                value={config.illustrationX}
+                output={positionOutput(config.illustrationX, "左", "右")}
+                onChange={(value) => onConfigChange("illustrationX", value)}
+              />
+              <RangeField
+                label="纵向 Y"
+                name="illustrationY"
+                min={0}
+                max={100}
+                step={1}
+                value={config.illustrationY}
+                output={positionOutput(config.illustrationY, "上", "下")}
+                onChange={(value) => onConfigChange("illustrationY", value)}
+              />
             </div>
           </div>
-        </details>
-
-        <div className="mt-6 grid gap-3">
-          <button
-            className="flex w-full cursor-pointer items-center justify-between border-0 bg-ink px-[15px] py-[13px] text-[11px] text-paper transition duration-160 hover:-translate-y-px hover:bg-leaf disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-42 [&>i]:not-italic"
-            type="submit"
-            disabled={busyAction !== null}
-          >
-            <span>{busyAction === "save" ? "正在应用…" : "保存外观参数"}</span>
-            <i aria-hidden="true">↗</i>
-          </button>
-          {canStartBackground && (
-            <button
-              className="flex w-full cursor-pointer items-center justify-center border border-ink/16 bg-transparent px-[15px] py-[13px] text-[11px] text-ink transition duration-160 hover:border-leaf/40 hover:bg-leaf/6 disabled:cursor-not-allowed disabled:opacity-42"
-              type="button"
-              disabled={busyAction !== null}
-              onClick={() => void onStart()}
-            >
-              <span>{busyAction === "start" ? "正在启动…" : "启动背景模式"}</span>
-            </button>
-          )}
-          {actionNote && (
-            <p className="m-0 text-[10px] leading-[1.6] text-pretty text-ink/52">{actionNote}</p>
-          )}
         </div>
-      </form>
-    </section>
+      </details>
+    </SettingsPanelLayout>
   )
 }

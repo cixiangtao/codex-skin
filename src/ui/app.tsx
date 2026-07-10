@@ -608,6 +608,7 @@ export function App() {
           >
             {activeSurface ? (
               <SurfaceSettingsPanel
+                key={activeSurface}
                 actionNote={actionNote}
                 advice={advice}
                 busyAction={busyAction}
@@ -628,6 +629,7 @@ export function App() {
               />
             ) : (
               <WallpaperSettingsPanel
+                key="wallpaper"
                 actionNote={actionNote}
                 busyAction={busyAction}
                 bundledBackgrounds={bundledBackgrounds.wallpaper}
