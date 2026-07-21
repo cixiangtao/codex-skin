@@ -147,21 +147,6 @@ export async function isCodexRunning(appPath: string) {
   return processListContainsExecutable(stdout, executable)
 }
 
-/** Asks the user whether Codex Skin may restart an already-running Codex app. */
-export async function confirmCodexRestart() {
-  try {
-    const { stdout } = await execFileAsync("/usr/bin/osascript", [
-      "-e",
-      'button returned of (display dialog "Codex is already running without background support. Restart Codex now to start background mode? Codex may ask you to confirm quitting again; Codex Skin will keep waiting until Codex exits." with title "Codex Skin" buttons {"Exit Codex Skin", "Restart Codex"} default button "Restart Codex" cancel button "Exit Codex Skin" with icon caution)',
-    ])
-    return stdout.trim() === "Restart Codex"
-  } catch (error) {
-    // Closing the dialog or selecting its cancel button returns AppleScript error -128.
-    if (errorCode(error) === "1") return false
-    throw error
-  }
-}
-
 /** Requests a normal application quit so Codex can persist its state before relaunch. */
 export async function quitCodex() {
   await execFileAsync("/usr/bin/osascript", [

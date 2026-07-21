@@ -14,12 +14,8 @@ import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
 import { readDaemonPid, runDaemon, stopDaemon } from "./daemon.ts"
 import { removeFromAllTargets, verifyAllTargets } from "./injector.ts"
 import type { TargetVerification } from "./injector.ts"
-import { appExecutableExists, confirmCodexRestart, isCodexRunning } from "./macos.ts"
-import {
-  runBackgroundRestartWorker,
-  startBackgroundRestartWorker,
-  stopBackgroundRestartWorker,
-} from "./restart-worker.ts"
+import { appExecutableExists, isCodexRunning } from "./macos.ts"
+import { runBackgroundRestartWorker, stopBackgroundRestartWorker } from "./restart-worker.ts"
 import {
   ensureSettingsServer,
   listenSettingsServer,
@@ -52,13 +48,11 @@ interface CommandIo {
 
 interface CliOptions {
   colors?: ReturnType<typeof pc.createColors>
-  confirmCodexRestartImpl?: () => Promise<boolean>
   configuredCdpIsReadyImpl?: typeof configuredCdpIsReady
   entryPath?: string
   io?: CommandIo
   isCodexRunningImpl?: typeof isCodexRunning
   openSettingsImpl?: typeof openSettings
-  startBackgroundRestartWorkerImpl?: typeof startBackgroundRestartWorker
   startConfiguredBackgroundImpl?: typeof startConfiguredBackground
   version?: string
 }
@@ -250,6 +244,7 @@ async function runDevelopmentServer(entryPath: string, io: CommandIo) {
   await new Promise<void>((resolve) => instance.server.once("close", resolve))
 }
 
+/** Completes the Codex launch and injection lifecycle before exposing the settings interface. */
 async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
   const config = await readConfig()
 
@@ -259,11 +254,7 @@ async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
       options.configuredCdpIsReadyImpl || configuredCdpIsReady
     )(config)
     if (!httpReady && inspection.state !== "occupied") {
-      restartRunningCodex = await (options.confirmCodexRestartImpl || confirmCodexRestart)()
-      if (!restartRunningCodex) {
-        io.log("Codex Skin did not start. Quit Codex completely, then run codex-skin again.")
-        return 0
-      }
+      restartRunningCodex = true
       io.log(
         (options.colors || pc).yellow(
           "Waiting for Codex to quit. If Codex asks again, confirm the quit in Codex.",
@@ -272,33 +263,11 @@ async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
     }
   }
 
-  const server = await (options.openSettingsImpl || openSettings)(entryPath)
-  if (restartRunningCodex) {
-    logRuntimeSummary(
-      io,
-      {
-        cdpPort: config.port,
-        daemonPid: null,
-        settingsPid: server.pid,
-        settingsPort: server.port,
-      },
-      options,
-    )
-    io.log(
-      (options.colors || pc).yellow(
-        "Codex restart scheduled. Codex Skin will keep waiting in the background, then relaunch Codex after it exits.",
-      ),
-    )
-    const startRestartWorker =
-      options.startBackgroundRestartWorkerImpl || startBackgroundRestartWorker
-    startRestartWorker({ entryPath })
-    return 0
-  }
-
   const result = await (options.startConfiguredBackgroundImpl || startConfiguredBackground)(
     config,
-    { entryPath },
+    { entryPath, restartRunningCodex },
   )
+  const server = await (options.openSettingsImpl || openSettings)(entryPath)
   logRuntimeSummary(
     io,
     {

@@ -193,7 +193,7 @@ test("launch continues with the all-disabled first-run config", async () => {
     })
 
     assert.equal(exitCode, 0)
-    assert.deepEqual(events.slice(0, 2), ["settings", "start"])
+    assert.deepEqual(events.slice(0, 2), ["start", "settings"])
     assert.match(events[2] || "", /Background running · PID 91/)
     assert.equal(events[3], "Applied the background to 0 Codex windows.")
   } finally {
@@ -203,7 +203,7 @@ test("launch continues with the all-disabled first-run config", async () => {
   }
 })
 
-test("launch prints service status before handing a running Codex restart to a worker", async () => {
+test("launch waits for a running Codex restart before opening settings and printing status", async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-cli-"))
   const image = path.join(dataDirectory, "wallpaper.jpg")
   const previousHome = process.env.CODEX_SKIN_HOME
@@ -219,10 +219,6 @@ test("launch prints service status before handing a running Codex restart to a w
         httpReady: false,
         inspection: { codexPid: null, listenerPids: [], state: "available" },
       }),
-      confirmCodexRestartImpl: async () => {
-        events.push("confirm")
-        return true
-      },
       entryPath: "/tmp/codex-skin.js",
       io: { log: (message) => events.push(message) },
       isCodexRunningImpl: async () => true,
@@ -230,24 +226,30 @@ test("launch prints service status before handing a running Codex restart to a w
         events.push("settings")
         return { pid: 12, port: 4179, url: "http://127.0.0.1:4179/" } as never
       },
-      startBackgroundRestartWorkerImpl: ({ entryPath }) => {
-        events.push(`worker:${entryPath}`)
-        return 87
-      },
-      startConfiguredBackgroundImpl: async () => {
-        throw new Error("the interactive CLI must not own the restart lifecycle")
+      startConfiguredBackgroundImpl: async (_config, options) => {
+        events.push("restart")
+        assert.equal(options.restartRunningCodex, true)
+        assert.equal(options.entryPath, "/tmp/codex-skin.js")
+        return {
+          applied: true,
+          daemon: { pid: 91 },
+          mode: "started",
+          port: 9230,
+          targets: 1,
+        }
       },
       version: "1.2.3",
     })
 
     assert.equal(exitCode, 0)
-    assert.equal(events[0], "confirm")
-    assert.match(events[1] || "", /Waiting for Codex to quit/)
+    assert.match(events[0] || "", /Waiting for Codex to quit/)
+    assert.equal(events[1], "restart")
     assert.equal(events[2], "settings")
     assert.match(events[3] || "", /Codex Skin v1\.2\.3/)
     assert.match(events[3] || "", /Settings\s+running · PID 12 · http:\/\/127\.0\.0\.1:4179\//)
-    assert.match(events[4] || "", /Codex restart scheduled/)
-    assert.equal(events[5], "worker:/tmp/codex-skin.js")
+    assert.match(events[3] || "", /Background running · PID 91/)
+    assert.match(events[3] || "", /Codex CDP\s+127\.0\.0\.1:9230/)
+    assert.equal(events[4], "Applied the background to 1 Codex window.")
   } finally {
     if (previousHome === undefined) delete process.env.CODEX_SKIN_HOME
     else process.env.CODEX_SKIN_HOME = previousHome
