@@ -5,6 +5,7 @@ import path from "node:path"
 
 import { test } from "vitest"
 
+import type { CodexSkinCore } from "../src/core/index.ts"
 import { BackgroundStateError } from "../src/runtime/background-service.ts"
 import { readConfig, writeConfig } from "../src/runtime/config.ts"
 import {
@@ -15,6 +16,64 @@ import {
   settingsServerPidsFromProcesses,
   stopSettingsServer,
 } from "../src/runtime/settings-server.ts"
+
+test("settings server uses a client-owned core without a CLI entry path", async () => {
+  const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-core-settings-"))
+  const starts: boolean[] = []
+  const core: CodexSkinCore = {
+    backgroundRunning: async () => true,
+    configuredCdpIsReady: async () => ({
+      httpReady: false,
+      inspection: { codexPid: null, listenerPids: [], state: "available" },
+    }),
+    inject: async () => 0,
+    start: async (_config, options) => {
+      starts.push(options?.restartRunningCodex === true)
+      return { applied: true, mode: "started", targets: 0 }
+    },
+    status: async () => ({
+      cdpAvailable: false,
+      cdpPortState: "available",
+      imageReadable: false,
+      surfaces: {
+        main: { imageReadable: false },
+        sidebar: { imageReadable: false },
+      },
+      wallpaper: { imageReadable: false },
+    }),
+    sync: async () => ({ applied: true, mode: "removed", targets: 0 }),
+    verify: async () => [],
+  }
+  const instance = await listenSettingsServer({
+    core,
+    dataDirectory,
+    idleTimeoutMs: 1000,
+    token: "client-owned-core",
+  })
+
+  try {
+    const bootstrap = await fetch(instance.url, { redirect: "manual" })
+    const cookie = bootstrap.headers.get("set-cookie")?.split(";", 1)[0]
+    assert.ok(cookie)
+    const origin = new URL(instance.url).origin
+
+    const stateResponse = await fetch(`${origin}/api/state`, { headers: { cookie } })
+    const state = (await stateResponse.json()) as { status: { daemonRunning: boolean } }
+    assert.equal(state.status.daemonRunning, true)
+
+    const startResponse = await fetch(`${origin}/api/start`, {
+      body: JSON.stringify({ restartRunningCodex: true }),
+      headers: { cookie, "content-type": "application/json" },
+      method: "POST",
+    })
+    assert.equal(startResponse.status, 202)
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    assert.deepEqual(starts, [true])
+  } finally {
+    await new Promise<void>((resolve) => instance.server.close(() => resolve()))
+    await rm(dataDirectory, { recursive: true, force: true })
+  }
+})
 
 test("settings server identity rejects a recycled pid", () => {
   const state = {

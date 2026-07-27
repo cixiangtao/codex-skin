@@ -18,12 +18,9 @@ import type { AddressInfo } from "node:net"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import {
-  BackgroundStateError,
-  backgroundStatus,
-  startConfiguredBackground,
-  syncConfiguredBackground,
-} from "./background-service.ts"
+import { createCodexSkinCore } from "../core/index.ts"
+import type { CodexSkinCore } from "../core/index.ts"
+import { BackgroundStateError, startConfiguredBackground } from "./background-service.ts"
 import { readConfig, resolveDataDirectory, writeConfig } from "./config.ts"
 import { imageFileToDataUrl } from "./css.ts"
 import { readDaemonPid } from "./daemon.ts"
@@ -106,7 +103,8 @@ interface SettingsProcessOptions extends DataDirectoryOptions {
 interface SettingsOptions extends SettingsProcessOptions {
   authenticatedRedirectUrl?: string
   backgroundsRoot?: string
-  entryPath: string
+  core?: CodexSkinCore
+  entryPath?: string
   idleTimeoutMs?: number
   isCdpAvailableImpl?: (options: { port: number }) => Promise<boolean>
   port?: number
@@ -121,6 +119,17 @@ interface BundledBackgroundOption {
   file: string
   label: string
   url: string
+}
+
+function coreForSettings(options: SettingsOptions) {
+  return (
+    options.core ||
+    createCodexSkinCore({
+      dataDirectory: options.dataDirectory,
+      entryPath: options.entryPath,
+      isCdpAvailableImpl: options.isCdpAvailableImpl,
+    })
+  )
 }
 
 type BundledBackgroundCatalog = Record<
@@ -457,17 +466,23 @@ async function selectBundledBackground(
     { dataDirectory: options.dataDirectory },
   )
   await removeUnusedManagedImage(previousImage, destination, config, imageDirectory)
-  const application = await syncConfiguredBackground(config, options)
+  const application = await coreForSettings(options).sync(config)
   return { ...(await statePayload(config, options)), application }
 }
 
 async function statePayload(config: BackgroundConfig, options: SettingsOptions) {
+  const core = coreForSettings(options)
+  const [status, backgroundRunning] = await Promise.all([
+    core.status(config),
+    core.backgroundRunning(),
+  ])
   return {
     bundledBackgrounds: await bundledBackgroundCatalog(config, options),
     config,
     status: {
-      ...(await backgroundStatus(config, options)),
-      daemonRunning: Boolean(await readDaemonPid({ dataDirectory: options.dataDirectory })),
+      ...status,
+      daemonRunning:
+        backgroundRunning ?? Boolean(await readDaemonPid({ dataDirectory: options.dataDirectory })),
     },
   }
 }
@@ -487,7 +502,7 @@ async function saveAndSync(input: unknown, options: SettingsOptions) {
     },
     { dataDirectory: options.dataDirectory },
   )
-  const application = await syncConfiguredBackground(config, options)
+  const application = await coreForSettings(options).sync(config)
   return { ...(await statePayload(config, options)), application }
 }
 
@@ -538,7 +553,7 @@ async function uploadImage(
     { dataDirectory: options.dataDirectory },
   )
   await removeUnusedManagedImage(previousImage, target, config, imageDirectory)
-  const application = await syncConfiguredBackground(config, options)
+  const application = await coreForSettings(options).sync(config)
   return { ...(await statePayload(config, options)), application }
 }
 
@@ -582,11 +597,21 @@ async function serveStaticFile(response: ServerResponse, pathname: string, uiRoo
 }
 
 export function createSettingsHttpServer(options: SettingsOptions) {
+  if (!options.entryPath && !options.core) {
+    throw new Error("The settings server requires a core instance or CLI entry path.")
+  }
   const token = options.token || randomBytes(24).toString("hex")
   const dataDirectory = options.dataDirectory || resolveDataDirectory(options.env)
   const uiRoot = options.uiRoot || defaultUiRoot
   const backgroundsRoot = options.backgroundsRoot || path.join(uiRoot, "backgrounds")
-  const runtimeOptions = { ...options, backgroundsRoot, dataDirectory, uiRoot }
+  const core =
+    options.core ||
+    createCodexSkinCore({
+      dataDirectory,
+      entryPath: options.entryPath,
+      isCdpAvailableImpl: options.isCdpAvailableImpl,
+    })
+  const runtimeOptions = { ...options, backgroundsRoot, core, dataDirectory, uiRoot }
   let idleTimer: ReturnType<typeof setTimeout>
 
   const armIdleTimer = () => {
@@ -687,9 +712,15 @@ export function createSettingsHttpServer(options: SettingsOptions) {
           const payload = await statePayload(config, runtimeOptions)
           response.once("finish", () => {
             try {
-              const startRestartWorker =
-                options.startBackgroundRestartWorkerImpl || startBackgroundRestartWorker
-              startRestartWorker({ entryPath: options.entryPath })
+              if (options.entryPath) {
+                const startRestartWorker =
+                  options.startBackgroundRestartWorkerImpl || startBackgroundRestartWorker
+                startRestartWorker({ entryPath: options.entryPath })
+              } else {
+                void core
+                  .start(config, { restartRunningCodex: true })
+                  .catch((error) => console.error("Unable to restart Codex:", error))
+              }
             } catch (error) {
               console.error("Unable to hand off the Codex restart:", error)
             }
@@ -700,9 +731,9 @@ export function createSettingsHttpServer(options: SettingsOptions) {
           })
           return
         }
-        const application = await (
-          options.startConfiguredBackgroundImpl || startConfiguredBackground
-        )(config, runtimeOptions)
+        const application = options.startConfiguredBackgroundImpl
+          ? await options.startConfiguredBackgroundImpl(config, runtimeOptions)
+          : await core.start(config)
         const activeConfig = await readConfig({ dataDirectory })
         sendJson(response, 200, {
           ...(await statePayload(activeConfig, runtimeOptions)),
@@ -745,7 +776,7 @@ export async function listenSettingsServer(options: SettingsOptions) {
   }
 }
 
-export async function runSettingsServerDaemon(options: SettingsOptions) {
+export async function runSettingsServerDaemon(options: SettingsOptions & { entryPath: string }) {
   const dataDirectory = options.dataDirectory || resolveDataDirectory(options.env)
   await mkdir(dataDirectory, { recursive: true, mode: 0o700 })
   const processIdentity = await (options.inspectProcessImpl || inspectProcess)(process.pid)
@@ -806,7 +837,7 @@ export async function ensureSettingsServer({
   entryPath,
   spawnImpl = spawn as SpawnImplementation,
   ...options
-}: SettingsOptions) {
+}: SettingsOptions & { entryPath: string }) {
   const paths = runtimePaths(options)
   const [existing, lockOwner, discovered] = await Promise.all([
     readSettingsServerState(options),
