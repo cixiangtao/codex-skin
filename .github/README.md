@@ -3,15 +3,29 @@
 Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面美化工具。无需修改或重新签名 `ChatGPT.app`，即可通过可视化设置为 Codex 添加全局壁纸、主面板人物布景和侧边栏装饰，自由打造浅色、深色、二次元等个性化 Codex 主题。
 
 > [!IMPORTANT]
-> Codex Skin 目前仅支持 macOS，运行前必须准备 Node.js 22+，并已安装 Codex 桌面端。它不是浏览器版 ChatGPT/Codex 的扩展，也不支持 Windows 或 Linux。
+> Codex Skin 目前仅支持 macOS，并需要已安装 Codex 桌面端。面向普通用户的正式入口是
+> Codex Skin 客户端，客户端内置运行环境，无需安装 Node.js。CLI 仅作为开发、测试、无界面
+> 排障和客户端故障时的兜底工具。
 
 ## 依赖环境
 
-- macOS
-- Node.js 22 或更高版本（需包含 npm 与 `npx`）
+- Apple Silicon Mac
 - Codex 桌面端；默认安装路径为 `/Applications/ChatGPT.app`
 
-如果 Codex 不在默认路径，可在命令中通过 `--app-path "/实际路径/ChatGPT.app"` 指定。普通用户无需安装 Bun、TypeScript 或项目开发依赖。
+客户端用户无需安装 Node.js、Bun、TypeScript 或项目开发依赖。当前客户端仍处于开发预览阶段，
+尚未完成 Apple Developer 签名、公证和 Intel Mac 构建。
+
+## 产品入口与维护边界
+
+- **客户端是唯一面向普通用户的产品入口**，用户安装、设置主题和日常运行都应通过客户端完成。
+- **CLI 不作为普通用户的推荐使用方式**，仅用于自动化测试、开发调试、无界面排障，以及客户端
+  出现问题时的兜底恢复。
+- 客户端与 CLI 必须复用同一套 Core、配置格式和运行状态判断；任何新能力都先进入 Core，不允许
+  在两个入口中分别实现业务逻辑。
+- CLI 保持精简和稳定，不为它单独扩展交互式产品能力；用户文档、发布说明和问题引导默认以客户端
+  为准。
+
+完整决策与后续维护规则见[桌面客户端优先决策](../docs/architecture/desktop-first.md)。
 
 ## Codex 主题换装效果
 
@@ -41,15 +55,22 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 
 ## 快速开始
 
-直接运行：
+正式分发后，普通用户应从 Releases 下载并安装 `Codex Skin.app`。当前开发预览可以在源码目录
+生成本机应用：
 
 ```bash
-npx codex-skin
+bun install
+bun run desktop:pack
+open "release/mac-arm64/Codex Skin.app"
 ```
 
-该命令会打开本地设置页，以仅回环可访问的 Chrome DevTools Protocol（CDP）端口启动 Codex，自动应用当前配置，并在后台保持所有新窗口同步。Codex 退出后，后台进程也会随之结束。
+客户端会打开内置设置页，以仅回环可访问的 Chrome DevTools Protocol（CDP）端口启动 Codex，
+自动应用当前配置，并在关闭设置窗口后继续维护所有新窗口。只有从应用菜单退出客户端时，后台
+监听才会停止。
 
-首次使用且尚未生成配置文件时，全局背景、主面板和侧边栏默认全部关闭，也不会预选图片；Codex 仍会直接启动，因此首次运行不会被图片配置中断，也不会改变原生界面。之后可以在设置页主动选择图片并开启需要的背景层。终端会持续显示设置服务、背景守护进程和 Codex CDP 的端口与 PID，并提供可直接复制的停止命令。
+首次使用且尚未生成配置文件时，全局背景、主面板和侧边栏默认全部关闭，也不会预选图片；
+Codex 仍会直接启动，因此首次运行不会改变原生界面。之后可以在设置页主动选择图片并开启需要的
+背景层。
 
 ## 可视化设置
 
@@ -73,7 +94,16 @@ npx codex-skin
 
 设置页中的修改会立即应用到当前已连接的 Codex 窗口。旧版单分区配置会自动迁移到主面板，无需手动处理。
 
-## 常用命令
+## CLI（内部与兜底入口）
+
+CLI 需要 Node.js 22+，不面向普通用户，也不作为日常使用的推荐入口。它保留以下用途：
+
+- 自动化测试和持续集成验证
+- 核心能力与启动流程的开发调试
+- 服务器、远程终端等无界面环境的诊断
+- 客户端无法打开或后台状态异常时的兜底检查与恢复
+
+常用排障命令：
 
 ```bash
 npx codex-skin                  # 打开设置页并启动背景模式
@@ -142,7 +172,8 @@ CDP 参数必须在 Codex 启动时传入。如果 Codex 已经以普通模式�
 - 如果 Codex 再次询问是否退出，请在 Codex 中确认；Codex Skin 会一直等到 Codex 完全退出
 - 拒绝后，Codex Skin 会直接退出，不会改动正在运行的 Codex
 
-后续建议始终通过 `npx codex-skin` 启动，让背景连接从 Codex 启动阶段即可用。
+日常使用应始终通过 Codex Skin 客户端启动，让背景连接从 Codex 启动阶段即可用。CLI 启动仅用于
+开发和排障。
 
 Codex Skin 不会修改 `app.asar`、`ElectronAsarIntegrity`、应用签名、登录数据或更新程序。设置服务仅监听 `127.0.0.1`，使用随机会话令牌，并在连续 30 分钟没有请求后关闭。CDP 本身没有应用层身份验证，因此请勿将其暴露到网络。
 
@@ -162,7 +193,9 @@ bun run build    # 构建界面与命令行程序
 
 `bun dev` 会启动开发界面与本地接口，然后复用 `npx codex-skin` 的默认启动流程：打开设置页、启动 Codex，并在存在已启用配置时自动应用背景；首次无配置时只启动 Codex，不注入任何背景样式。需要重启已有 Codex 时，同样会把退出轮询与重新启动交给独立后台任务。按下 `Ctrl+C` 后，Vite 与本地接口两个开发子进程会一并停止。
 
-项目使用 Bun 和 TypeScript 开发，设置界面基于 React、Tailwind CSS 4、Vite+ 与 Vite，测试使用 Vitest。npm 包会发布为编译后的 Node.js 可执行程序，最终用户无需安装 Bun 或 TypeScript。
+项目使用 Bun 和 TypeScript 开发，设置界面基于 React、Tailwind CSS 4、Vite+ 与 Vite，测试使用
+Vitest。npm 包继续提供编译后的 CLI，但它属于开发与支持工具；普通用户使用包含完整运行环境的
+客户端。
 
 ### 内置背景素材
 
