@@ -4,16 +4,14 @@ import path from "node:path"
 import pc from "picocolors"
 
 import packageManifest from "../../package.json" with { type: "json" }
-import {
-  configuredCdpIsReady,
-  injectConfiguredBackground,
-  startConfiguredBackground,
-} from "./background-service.ts"
+import { createCodexSkinCore } from "../core/index.ts"
+import type { CodexSkinCore } from "../core/index.ts"
+import { configuredCdpIsReady, startConfiguredBackground } from "./background-service.ts"
 import { appExecutableExists, isCodexRunning } from "./client.ts"
 import { configuredBackgroundImages, readConfig, resolveConfigPath, writeConfig } from "./config.ts"
-import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
+import { imageFileToDataUrl } from "./css.ts"
 import { readDaemonPid, runDaemon, stopDaemon } from "./daemon.ts"
-import { removeFromAllTargets, verifyAllTargets } from "./injector.ts"
+import { removeFromAllTargets } from "./injector.ts"
 import type { TargetVerification } from "./injector.ts"
 import { runBackgroundRestartWorker, stopBackgroundRestartWorker } from "./restart-worker.ts"
 import {
@@ -49,6 +47,7 @@ interface CommandIo {
 interface CliOptions {
   colors?: ReturnType<typeof pc.createColors>
   configuredCdpIsReadyImpl?: typeof configuredCdpIsReady
+  core?: CodexSkinCore
   entryPath?: string
   io?: CommandIo
   isCodexRunningImpl?: typeof isCodexRunning
@@ -247,11 +246,12 @@ async function runDevelopmentServer(entryPath: string, io: CommandIo) {
 /** Completes the Codex launch and injection lifecycle before exposing the settings interface. */
 async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
   const config = await readConfig()
+  const core = options.core || createCodexSkinCore({ entryPath })
 
   let restartRunningCodex = false
   if (await (options.isCodexRunningImpl || isCodexRunning)(config.appPath)) {
     const { httpReady, inspection } = await (
-      options.configuredCdpIsReadyImpl || configuredCdpIsReady
+      options.configuredCdpIsReadyImpl || core.configuredCdpIsReady
     )(config)
     if (!httpReady && inspection.state !== "occupied") {
       restartRunningCodex = true
@@ -263,10 +263,9 @@ async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
     }
   }
 
-  const result = await (options.startConfiguredBackgroundImpl || startConfiguredBackground)(
-    config,
-    { entryPath, restartRunningCodex },
-  )
+  const result = options.startConfiguredBackgroundImpl
+    ? await options.startConfiguredBackgroundImpl(config, { entryPath, restartRunningCodex })
+    : await core.start(config, { restartRunningCodex })
   const server = await (options.openSettingsImpl || openSettings)(entryPath)
   logRuntimeSummary(
     io,
@@ -284,8 +283,8 @@ async function launch(entryPath: string, io: CommandIo, options: CliOptions) {
   return 0
 }
 
-async function requireConfiguredCdp(config: BackgroundConfig) {
-  const { httpReady, inspection } = await configuredCdpIsReady(config)
+async function requireConfiguredCdp(config: BackgroundConfig, core: CodexSkinCore) {
+  const { httpReady, inspection } = await core.configuredCdpIsReady(config)
   if (inspection.state === "occupied") {
     throw new Error(`Port ${config.port} is not owned by the configured Codex app.`)
   }
@@ -337,9 +336,9 @@ export function isSupportedNodeVersion(version = process.versions.node) {
   return major >= 22
 }
 
-async function doctor(io: CommandIo) {
+async function doctor(io: CommandIo, core: CodexSkinCore) {
   const config = await readConfig()
-  const cdp = await configuredCdpIsReady(config)
+  const cdp = await core.configuredCdpIsReady(config)
   const configuredImages = configuredBackgroundImages(config)
   const configuredImagesReadable =
     configuredImages.length > 0 &&
@@ -369,10 +368,11 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
   const io = options.io || console
   const entryPath = options.entryPath || process.argv[1]
   if (!entryPath) throw new Error("Unable to resolve the CLI entry path.")
+  const core = options.core || createCodexSkinCore({ entryPath })
   const { command, options: commandOptions } = parseArguments(argv)
   switch (command) {
     case "launch":
-      return await launch(entryPath, io, options)
+      return await launch(entryPath, io, { ...options, core })
     case "help":
     case "--help":
     case "-h":
@@ -404,15 +404,11 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
       io.log(printableConfig(await readConfig()))
       return 0
     case "doctor":
-      return await doctor(io)
+      return await doctor(io, core)
     case "verify": {
       const config = await readConfig()
-      await requireConfiguredCdp(config)
-      const results = await verifyAllTargets({
-        css: await buildBackgroundCss(config),
-        port: config.port,
-        reload: commandOptions.reload === true,
-      })
+      await requireConfiguredCdp(config, core)
+      const results = await core.verify(config, { reload: commandOptions.reload === true })
       for (const result of results) {
         const label = result.title || result.url || result.id || "Codex window"
         io.log(`${result.pass ? "✓" : "✗"} ${label}${result.error ? ` — ${result.error}` : ""}`)
@@ -425,24 +421,21 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
       return results.length > 0 && results.every((result) => result.pass) ? 0 : 1
     }
     case "start": {
-      const result = await startConfiguredBackground(await readConfig(), { entryPath })
+      const result = await core.start(await readConfig())
       io.log(`Injected ${result.targets ?? 0} Codex window(s).`)
       return 0
     }
     case "restart-worker":
       await runBackgroundRestartWorker({
         task: async () => {
-          await startConfiguredBackground(await readConfig(), {
-            entryPath,
-            restartRunningCodex: true,
-          })
+          await core.start(await readConfig(), { restartRunningCodex: true })
         },
       })
       return 0
     case "inject": {
       const config = await readConfig()
-      await requireConfiguredCdp(config)
-      io.log(`Injected ${await injectConfiguredBackground(config)} Codex window(s).`)
+      await requireConfiguredCdp(config, core)
+      io.log(`Injected ${await core.inject(config)} Codex window(s).`)
       return 0
     }
     case "stop": {
@@ -452,7 +445,7 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
         stopSettingsServer(),
         stopBackgroundRestartWorker(),
       ])
-      if ((await configuredCdpIsReady(config)).httpReady) {
+      if ((await core.configuredCdpIsReady(config)).httpReady) {
         await removeFromAllTargets({ port: config.port })
       }
       io.log(
@@ -482,7 +475,7 @@ export async function runCli(argv: string[], options: CliOptions = {}) {
       const config = await readConfig()
       await writeConfig({ ...config, enabled: false })
       await stopDaemon()
-      if ((await configuredCdpIsReady(config)).httpReady) {
+      if ((await core.configuredCdpIsReady(config)).httpReady) {
         await removeFromAllTargets({ port: config.port })
       }
       io.log("Codex Skin disabled. Codex itself was left running.")
