@@ -183,9 +183,6 @@ Codex Skin 不会修改 `app.asar`、`ElectronAsarIntegrity`、应用签名、�
 
 ```bash
 bun install
-bun dev          # 同时启动可视化界面与本地接口
-bun dev:ui       # 仅启动界面，监听 127.0.0.1:4178
-bun dev:server   # 仅启动设置接口，监听 127.0.0.1:4179
 bun run test     # 运行测试
 bun run check    # 运行代码检查
 bun run build    # 构建界面与命令行程序
@@ -193,11 +190,9 @@ bun run desktop  # 启动支持热更新的 Electron 开发环境
 bun run desktop:open # 生成并打开带正式名称和图标的 Codex Skin.app
 ```
 
-`bun dev` 会启动开发界面与本地接口，然后复用 `npx codex-skin` 的默认启动流程：打开设置页、启动 Codex，并在存在已启用配置时自动应用背景；首次无配置时只启动 Codex，不注入任何背景样式。需要重启已有 Codex 时，同样会把退出轮询与重新启动交给独立后台任务。按下 `Ctrl+C` 后，Vite 与本地接口两个开发子进程会一并停止。
-
-`bun run desktop:dev` 会直接使用 Electron 开发宿主，适合快速调试主进程，但 macOS 可能把
-宿主名称显示为 Electron；需要验证真实应用名称、Dock 图标或应用包元数据时，应使用
-`bun run desktop:open`。
+`bun run desktop` 与 `bun run desktop:dev` 等价。electron-vite 会同时启动 Electron 主进程、
+设置接口与支持热更新的界面；macOS 可能把开发宿主显示为 Electron。需要验证真实应用名称、
+Dock 图标或应用包元数据时，应使用 `bun run desktop:open`。
 
 项目使用 Bun 和 TypeScript 开发。electron-vite 统一构建 Electron 主进程与设置界面，界面基于
 React、Tailwind CSS 4 和 Vite；Oxfmt、Oxlint、TypeScript 与 Vitest 分别负责格式化、代码检查、
