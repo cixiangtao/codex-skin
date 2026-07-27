@@ -25,13 +25,19 @@ interface WaitForCodexExitOptions {
   pollIntervalMs?: number
 }
 
-interface RunningApplicationsOptions {
-  runningProcessIdsImpl?: () => Promise<number[]>
-}
-
 interface InstallationOptions {
   installedAppPathsImpl?: () => Promise<string[]>
   readBundleValueImpl?: (appPath: string, key: string) => Promise<string | null>
+}
+
+interface RunningApplicationsOptions extends InstallationOptions {
+  processTableImpl?: () => Promise<MacProcess[]>
+  runningProcessIdsImpl?: () => Promise<number[]>
+}
+
+interface QuitCodexOptions extends RunningApplicationsOptions {
+  killProcessImpl?: (pid: number, signal: NodeJS.Signals) => boolean
+  quitRegisteredCodexImpl?: () => Promise<void>
 }
 
 export interface MacProcess {
@@ -110,6 +116,11 @@ export function buildLaunchArguments(port: number) {
   return ["--remote-debugging-address=127.0.0.1", `--remote-debugging-port=${port}`]
 }
 
+/** Builds an exact-bundle Launch Services request while forwarding CDP flags to Codex. */
+export function buildApplicationLaunchArguments(appPath: string, port: number) {
+  return ["-n", "-a", path.resolve(appPath), "--args", ...buildLaunchArguments(port)]
+}
+
 export async function appExecutableExists(appPath: string, options: InstallationOptions = {}) {
   try {
     await access(await resolveAppExecutable(appPath, options))
@@ -130,8 +141,7 @@ export function parseRunningApplicationPids(output: string) {
   ]
 }
 
-/** Finds the native macOS application process by its stable bundle identifier. */
-export async function runningCodexProcessIds() {
+async function registeredCodexProcessIds() {
   const { stdout } = await execFileAsync("/usr/bin/osascript", [
     "-l",
     "JavaScript",
@@ -139,6 +149,10 @@ export async function runningCodexProcessIds() {
     RUNNING_CODEX_PIDS_SCRIPT,
   ])
   return parseRunningApplicationPids(stdout)
+}
+
+function processCommandMatchesExecutable(command: string, executable: string) {
+  return command === executable || command.startsWith(`${executable} `)
 }
 
 export function parseProcessTable(processList: string): MacProcess[] {
@@ -156,6 +170,35 @@ export function parseProcessTable(processList: string): MacProcess[] {
 async function readProcessTable() {
   const { stdout } = await execFileAsync("ps", ["-ax", "-o", "pid=,ppid=,command="])
   return parseProcessTable(stdout)
+}
+
+/**
+ * Finds Codex processes registered with macOS or launched directly by their bundle executable.
+ *
+ * Electron does not register a bundle with Launch Services when its executable is spawned
+ * directly, so the process-table fallback is required for Codex instances started by this app.
+ */
+export async function runningCodexProcessIds(
+  appPath: string,
+  options: RunningApplicationsOptions = {},
+) {
+  const registered = await (options.runningProcessIdsImpl || registeredCodexProcessIds)()
+  if (registered.length > 0) return registered
+
+  return await directlyLaunchedCodexProcessIds(appPath, options)
+}
+
+async function directlyLaunchedCodexProcessIds(
+  appPath: string,
+  options: RunningApplicationsOptions,
+) {
+  const [executable, processes] = await Promise.all([
+    resolveAppExecutable(appPath, options),
+    (options.processTableImpl || readProcessTable)(),
+  ])
+  return processes
+    .filter(({ command }) => processCommandMatchesExecutable(command, executable))
+    .map(({ pid }) => pid)
 }
 
 async function listenerPids(port: number) {
@@ -194,7 +237,7 @@ export function processDescendsFrom(processes: MacProcess[], pid: number, ancest
 
 /** Classifies a loopback port without trusting the service responding on it. */
 export async function inspectCdpPort(
-  _appPath: string,
+  appPath: string,
   port: number,
   options: PortInspectionOptions = {},
 ): Promise<CdpPortInspection> {
@@ -202,7 +245,10 @@ export async function inspectCdpPort(
   if (listeners.length === 0) return { codexPid: null, listenerPids: [], state: "available" }
 
   const processes = await (options.processTableImpl || readProcessTable)()
-  const runningPids = await (options.runningProcessIdsImpl || runningCodexProcessIds)()
+  const runningPids = await runningCodexProcessIds(appPath, {
+    ...options,
+    processTableImpl: async () => processes,
+  })
   const codexPid = runningPids.find(
     (pid) =>
       processes.some((process) => process.pid === pid) &&
@@ -228,16 +274,35 @@ export async function findAvailableCdpPort(
   throw new Error(`No free loopback port was found between ${preferredPort} and ${lastPort}.`)
 }
 
-export async function isCodexRunning(_appPath: string, options: RunningApplicationsOptions = {}) {
-  return (await (options.runningProcessIdsImpl || runningCodexProcessIds)()).length > 0
+export async function isCodexRunning(appPath: string, options: RunningApplicationsOptions = {}) {
+  return (await runningCodexProcessIds(appPath, options)).length > 0
 }
 
-/** Requests a normal application quit so Codex can persist its state before relaunch. */
-export async function quitCodex() {
+async function quitRegisteredCodex() {
   await execFileAsync("/usr/bin/osascript", [
     "-e",
     `tell application id "${CODEX_BUNDLE_ID}" to quit`,
   ])
+}
+
+/**
+ * Requests a normal Codex quit, including instances launched outside Launch Services.
+ *
+ * Directly spawned Electron bundles have no Apple Event target, so they receive SIGTERM after
+ * their executable path and process identity have been verified.
+ */
+export async function quitCodex(appPath: string, options: QuitCodexOptions = {}) {
+  const registered = await (options.runningProcessIdsImpl || registeredCodexProcessIds)()
+  const executablePids = await directlyLaunchedCodexProcessIds(appPath, options)
+  if (registered.length > 0) {
+    await (options.quitRegisteredCodexImpl || quitRegisteredCodex)()
+  }
+
+  const registeredSet = new Set(registered)
+  const killProcess = options.killProcessImpl || process.kill
+  for (const pid of executablePids) {
+    if (!registeredSet.has(pid)) killProcess(pid, "SIGTERM")
+  }
 }
 
 /** Keeps polling until the configured Codex main process has fully exited. */
@@ -250,26 +315,34 @@ export async function waitForCodexExit(appPath: string, options: WaitForCodexExi
   }
 }
 
-/** Returns the native Codex application PID from the macOS application registry. */
+/** Returns the native Codex application's main process ID. */
 export async function findCodexProcessId(
-  _appPath: string,
+  appPath: string,
   options: RunningApplicationsOptions = {},
 ) {
-  return (await (options.runningProcessIdsImpl || runningCodexProcessIds)())[0] ?? null
+  return (await runningCodexProcessIds(appPath, options))[0] ?? null
 }
 
 export async function launchCodex({
   appPath,
+  installedAppPathsImpl,
   port,
+  readBundleValueImpl,
   spawnImpl,
 }: {
   appPath: string
   port: number
   spawnImpl?: SpawnImplementation
-}) {
+} & InstallationOptions) {
+  const resolvedAppPath = await resolveCodexAppPath(appPath, {
+    installedAppPathsImpl,
+    readBundleValueImpl,
+  })
+  if (!resolvedAppPath) throw new Error("Codex application is not installed.")
+
   const child = (spawnImpl || spawn)(
-    await resolveAppExecutable(appPath),
-    buildLaunchArguments(port),
+    "/usr/bin/open",
+    buildApplicationLaunchArguments(resolvedAppPath, port),
     {
       detached: true,
       stdio: "ignore",

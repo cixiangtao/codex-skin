@@ -13,7 +13,7 @@ export interface CodexClientPlatformAdapter {
     port: number
     spawnImpl?: SpawnImplementation
   }): Promise<number | undefined>
-  quitCodex(): Promise<void>
+  quitCodex(appPath: string): Promise<void>
   resolveAppExecutable(appPath: string): Promise<string>
   waitForCodexExit(appPath: string): Promise<void>
 }
@@ -62,11 +62,11 @@ export const launchCodex = async (options: {
 }) => await codexClientPlatform().launchCodex(options)
 
 /** Requests a normal native-client quit through the host adapter. */
-export const quitCodex = () => codexClientPlatform().quitCodex()
+export const quitCodex = (appPath: string) => codexClientPlatform().quitCodex(appPath)
 
 /** Resolves the host-specific executable used to launch the native client. */
 export const resolveAppExecutable = async (appPath: string) =>
   await codexClientPlatform().resolveAppExecutable(appPath)
 
-/** Waits for the native client to leave the host application registry. */
+/** Waits for the native client process to exit. */
 export const waitForCodexExit = (appPath: string) => codexClientPlatform().waitForCodexExit(appPath)

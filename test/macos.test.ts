@@ -3,15 +3,18 @@ import assert from "node:assert/strict"
 import { test } from "vitest"
 
 import {
+  buildApplicationLaunchArguments,
   buildLaunchArguments,
   findAvailableCdpPort,
   findCodexProcessId,
   inspectCdpPort,
   isCodexRunning,
+  launchCodex,
   parseInstalledApplicationPaths,
   parseProcessTable,
   parseRunningApplicationPids,
   processDescendsFrom,
+  quitCodex,
   resolveAppExecutable,
   waitForCodexExit,
 } from "../src/runtime/macos.ts"
@@ -97,6 +100,39 @@ test("buildLaunchArguments binds CDP to loopback", () => {
   ])
 })
 
+test("launchCodex opens the exact application bundle through Launch Services", async () => {
+  const appPath = "/Applications/Renamed Codex.app"
+  let unreferenced = false
+  let spawnCall: { args: string[]; command: string; options: unknown } | undefined
+
+  const pid = await launchCodex({
+    appPath,
+    installedAppPathsImpl: async () => [],
+    port: 9229,
+    readBundleValueImpl: async () => "com.openai.codex",
+    spawnImpl: (command, args, options) => {
+      spawnCall = { args, command, options: options || {} }
+      return {
+        pid: 87,
+        unref: () => {
+          unreferenced = true
+        },
+      } as never
+    },
+  })
+
+  assert.equal(pid, 87)
+  assert.equal(unreferenced, true)
+  assert.deepEqual(spawnCall, {
+    args: buildApplicationLaunchArguments(appPath, 9229),
+    command: "/usr/bin/open",
+    options: {
+      detached: true,
+      stdio: "ignore",
+    },
+  })
+})
+
 test("running application lookup uses the native application identity instead of its path", async () => {
   assert.deepEqual(parseRunningApplicationPids("[42, 42, 0, null]"), [42])
   assert.equal(
@@ -111,4 +147,46 @@ test("running application lookup uses the native application identity instead of
     }),
     42,
   )
+})
+
+test("running application lookup falls back to directly launched bundle executables", async () => {
+  const appPath = "/Applications/Renamed Codex.app"
+  const executable = `${appPath}/Contents/MacOS/Codex Desktop`
+  const options = {
+    installedAppPathsImpl: async () => [],
+    processTableImpl: async () =>
+      parseProcessTable(
+        [
+          `42 1 ${executable} --remote-debugging-port=9229`,
+          `43 42 ${appPath}/Contents/Frameworks/Codex Helper`,
+        ].join("\n"),
+      ),
+    readBundleValueImpl: async (_appPath: string, key: string) =>
+      key === "CFBundleIdentifier" ? "com.openai.codex" : "Codex Desktop",
+    runningProcessIdsImpl: async () => [],
+  }
+
+  assert.equal(await isCodexRunning(appPath, options), true)
+  assert.equal(await findCodexProcessId(appPath, options), 42)
+})
+
+test("quitCodex terminates a verified executable that is not registered with macOS", async () => {
+  const appPath = "/Applications/Renamed Codex.app"
+  const executable = `${appPath}/Contents/MacOS/Codex Desktop`
+  const killed: Array<[number, NodeJS.Signals]> = []
+
+  await quitCodex(appPath, {
+    installedAppPathsImpl: async () => [],
+    killProcessImpl: (pid, signal) => {
+      killed.push([pid, signal])
+      return true
+    },
+    processTableImpl: async () =>
+      parseProcessTable(`42 1 ${executable} --remote-debugging-port=9229`),
+    readBundleValueImpl: async (_appPath, key) =>
+      key === "CFBundleIdentifier" ? "com.openai.codex" : "Codex Desktop",
+    runningProcessIdsImpl: async () => [],
+  })
+
+  assert.deepEqual(killed, [[42, "SIGTERM"]])
 })

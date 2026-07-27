@@ -50,7 +50,7 @@ export interface BackgroundServiceOptions {
     appPath: string
     port: number
   }) => Promise<number | undefined> | number | undefined
-  quitCodexImpl?: () => Promise<void>
+  quitCodexImpl?: (appPath: string) => Promise<void>
   removeFromAllTargetsImpl?: (options: { port: number }) => Promise<number>
   restartRunningCodex?: boolean
   startupPollIntervalMs?: number
@@ -249,7 +249,7 @@ export async function startConfiguredBackground(
       )
     }
     await stopBackgroundLifecycle(options)
-    await (options.quitCodexImpl || quitCodex)()
+    await (options.quitCodexImpl || quitCodex)(config.appPath)
     await (options.waitForCodexExitImpl || waitForCodexExit)(config.appPath)
     running = false
   }
