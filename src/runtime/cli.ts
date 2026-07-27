@@ -44,6 +44,12 @@ interface CommandIo {
   log(message: string): void
 }
 
+interface SettingsEndpoint {
+  pid: number
+  port: number
+  url: string
+}
+
 interface CliOptions {
   colors?: ReturnType<typeof pc.createColors>
   configuredCdpIsReadyImpl?: typeof configuredCdpIsReady
@@ -51,7 +57,7 @@ interface CliOptions {
   entryPath?: string
   io?: CommandIo
   isCodexRunningImpl?: typeof isCodexRunning
-  openSettingsImpl?: typeof openSettings
+  openSettingsImpl?: (entryPath: string) => Promise<SettingsEndpoint>
   startConfiguredBackgroundImpl?: typeof startConfiguredBackground
   version?: string
 }

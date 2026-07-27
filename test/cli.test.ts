@@ -228,6 +228,7 @@ test("launch waits for a running Codex restart before opening settings and print
       },
       startConfiguredBackgroundImpl: async (_config, options) => {
         events.push("restart")
+        assert.ok(options)
         assert.equal(options.restartRunningCodex, true)
         assert.equal(options.entryPath, "/tmp/codex-skin.js")
         return {

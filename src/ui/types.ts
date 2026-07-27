@@ -69,3 +69,5 @@ export type RangeKey =
   | "illustrationOpacity"
   | "illustrationX"
   | "illustrationY"
+  | "wallpaperPositionX"
+  | "wallpaperPositionY"

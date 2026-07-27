@@ -14,6 +14,7 @@ test("development launch reuses the default CLI launch path and development sett
     openDevelopmentUiImpl: async () => "reused",
     runCliImpl: async (argv, options) => {
       assert.deepEqual(argv, [])
+      assert.ok(options)
       assert.equal(options.entryPath, path.resolve("bin/codex-skin.ts"))
       assert.deepEqual(await options.openSettingsImpl?.("ignored"), {
         pid: 41790,
