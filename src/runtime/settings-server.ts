@@ -100,12 +100,12 @@ interface SettingsProcessOptions extends DataDirectoryOptions {
   listProcessesImpl?: () => Promise<ProcessSummary[]>
 }
 
-interface SettingsOptions extends SettingsProcessOptions {
+export interface SettingsOptions extends SettingsProcessOptions {
   authenticatedRedirectUrl?: string
   backgroundsRoot?: string
   core?: CodexSkinCore
   entryPath?: string
-  idleTimeoutMs?: number
+  idleTimeoutMs?: number | null
   isCdpAvailableImpl?: (options: { port: number }) => Promise<boolean>
   port?: number
   spawnImpl?: SpawnImplementation
@@ -612,9 +612,10 @@ export function createSettingsHttpServer(options: SettingsOptions) {
       isCdpAvailableImpl: options.isCdpAvailableImpl,
     })
   const runtimeOptions = { ...options, backgroundsRoot, core, dataDirectory, uiRoot }
-  let idleTimer: ReturnType<typeof setTimeout>
+  let idleTimer: ReturnType<typeof setTimeout> | undefined
 
   const armIdleTimer = () => {
+    if (options.idleTimeoutMs === null) return
     clearTimeout(idleTimer)
     idleTimer = setTimeout(() => server.close(), options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS)
     idleTimer.unref()
