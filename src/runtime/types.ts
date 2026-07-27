@@ -69,6 +69,12 @@ export interface CdpTarget {
   webSocketDebuggerUrl?: string
 }
 
+export interface CdpPortInspection {
+  codexPid: number | null
+  listenerPids: number[]
+  state: "available" | "codex" | "occupied"
+}
+
 export interface InjectionResult {
   error?: string
   id?: string

@@ -3,16 +3,35 @@ import { access } from "node:fs/promises"
 import path from "node:path"
 import { promisify } from "node:util"
 
-import type { SpawnImplementation } from "./types.ts"
+import type { CdpPortInspection, SpawnImplementation } from "./types.ts"
 import { errorCode } from "./types.ts"
 
 const execFileAsync = promisify(execFile)
 const CODEX_BUNDLE_ID = "com.openai.codex"
 const PROCESS_POLL_INTERVAL_MS = 250
+const RUNNING_CODEX_PIDS_SCRIPT = `ObjC.import("AppKit");
+const applications = $.NSRunningApplication.runningApplicationsWithBundleIdentifier(
+  ${JSON.stringify(CODEX_BUNDLE_ID)},
+);
+JSON.stringify(ObjC.deepUnwrap(applications.valueForKey("processIdentifier")));`
+const INSTALLED_CODEX_PATHS_SCRIPT = `ObjC.import("AppKit");
+const urls = $.NSWorkspace.sharedWorkspace.URLsForApplicationsWithBundleIdentifier(
+  ${JSON.stringify(CODEX_BUNDLE_ID)},
+);
+JSON.stringify(ObjC.deepUnwrap(urls.valueForKey("path")));`
 
 interface WaitForCodexExitOptions {
   isCodexRunningImpl?: (appPath: string) => Promise<boolean>
   pollIntervalMs?: number
+}
+
+interface RunningApplicationsOptions {
+  runningProcessIdsImpl?: () => Promise<number[]>
+}
+
+interface InstallationOptions {
+  installedAppPathsImpl?: () => Promise<string[]>
+  readBundleValueImpl?: (appPath: string, key: string) => Promise<string | null>
 }
 
 export interface MacProcess {
@@ -21,38 +40,105 @@ export interface MacProcess {
   ppid: number
 }
 
-export interface CdpPortInspection {
-  codexPid: number | null
-  listenerPids: number[]
-  state: "available" | "codex" | "occupied"
-}
-
-interface PortInspectionOptions {
+interface PortInspectionOptions extends RunningApplicationsOptions {
   listenerPidsImpl?: (port: number) => Promise<number[]>
   processTableImpl?: () => Promise<MacProcess[]>
 }
 
-export function resolveAppExecutable(appPath: string) {
-  return path.join(path.resolve(appPath), "Contents", "MacOS", "ChatGPT")
+async function readBundleValue(appPath: string, key: string) {
+  try {
+    const { stdout } = await execFileAsync("/usr/libexec/PlistBuddy", [
+      "-c",
+      `Print :${key}`,
+      path.join(path.resolve(appPath), "Contents", "Info.plist"),
+    ])
+    return stdout.trim() || null
+  } catch (error) {
+    if (errorCode(error) === "1") return null
+    throw error
+  }
+}
+
+export function parseInstalledApplicationPaths(output: string) {
+  const parsed = JSON.parse(output) as unknown
+  if (!Array.isArray(parsed)) {
+    throw new Error("Codex installation lookup returned invalid data.")
+  }
+  return [
+    ...new Set(
+      parsed
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => path.resolve(value))
+        .filter(Boolean),
+    ),
+  ]
+}
+
+/** Finds installed macOS application bundles by the stable Codex bundle identifier. */
+export async function installedCodexAppPaths() {
+  const { stdout } = await execFileAsync("/usr/bin/osascript", [
+    "-l",
+    "JavaScript",
+    "-e",
+    INSTALLED_CODEX_PATHS_SCRIPT,
+  ])
+  return parseInstalledApplicationPaths(stdout)
+}
+
+async function resolveCodexAppPath(appPath: string, options: InstallationOptions = {}) {
+  const bundleValue = options.readBundleValueImpl || readBundleValue
+  const configuredPath = path.resolve(appPath)
+  if ((await bundleValue(configuredPath, "CFBundleIdentifier")) === CODEX_BUNDLE_ID) {
+    return configuredPath
+  }
+  return (await (options.installedAppPathsImpl || installedCodexAppPaths)())[0] ?? null
+}
+
+/** Resolves the actual executable name from the application bundle metadata. */
+export async function resolveAppExecutable(appPath: string, options: InstallationOptions = {}) {
+  const bundleValue = options.readBundleValueImpl || readBundleValue
+  const resolvedAppPath = await resolveCodexAppPath(appPath, options)
+  if (!resolvedAppPath) throw new Error("Codex application is not installed.")
+  const executableName = await bundleValue(resolvedAppPath, "CFBundleExecutable")
+  if (!executableName || path.basename(executableName) !== executableName) {
+    throw new Error("Codex application has an invalid CFBundleExecutable value.")
+  }
+  return path.join(resolvedAppPath, "Contents", "MacOS", executableName)
 }
 
 export function buildLaunchArguments(port: number) {
   return ["--remote-debugging-address=127.0.0.1", `--remote-debugging-port=${port}`]
 }
 
-export async function appExecutableExists(appPath: string) {
+export async function appExecutableExists(appPath: string, options: InstallationOptions = {}) {
   try {
-    await access(resolveAppExecutable(appPath))
+    await access(await resolveAppExecutable(appPath, options))
     return true
   } catch {
     return false
   }
 }
 
-export function processListContainsExecutable(processList: string, executable: string) {
-  return processList
-    .split("\n")
-    .some((command) => command === executable || command.startsWith(`${executable} `))
+export function parseRunningApplicationPids(output: string) {
+  const parsed = JSON.parse(output) as unknown
+  if (!Array.isArray(parsed))
+    throw new Error("Codex running application lookup returned invalid data.")
+  return [
+    ...new Set(
+      parsed.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0),
+    ),
+  ]
+}
+
+/** Finds the native macOS application process by its stable bundle identifier. */
+export async function runningCodexProcessIds() {
+  const { stdout } = await execFileAsync("/usr/bin/osascript", [
+    "-l",
+    "JavaScript",
+    "-e",
+    RUNNING_CODEX_PIDS_SCRIPT,
+  ])
+  return parseRunningApplicationPids(stdout)
 }
 
 export function parseProcessTable(processList: string): MacProcess[] {
@@ -108,7 +194,7 @@ export function processDescendsFrom(processes: MacProcess[], pid: number, ancest
 
 /** Classifies a loopback port without trusting the service responding on it. */
 export async function inspectCdpPort(
-  appPath: string,
+  _appPath: string,
   port: number,
   options: PortInspectionOptions = {},
 ): Promise<CdpPortInspection> {
@@ -116,17 +202,18 @@ export async function inspectCdpPort(
   if (listeners.length === 0) return { codexPid: null, listenerPids: [], state: "available" }
 
   const processes = await (options.processTableImpl || readProcessTable)()
-  const executable = resolveAppExecutable(appPath)
-  const codex = processes.find(
-    ({ command }) => command === executable || command.startsWith(`${executable} `),
+  const runningPids = await (options.runningProcessIdsImpl || runningCodexProcessIds)()
+  const codexPid = runningPids.find(
+    (pid) =>
+      processes.some((process) => process.pid === pid) &&
+      listeners.every((listenerPid) => processDescendsFrom(processes, listenerPid, pid)),
   )
-  if (!codex) return { codexPid: null, listenerPids: listeners, state: "occupied" }
+  if (!codexPid) return { codexPid: null, listenerPids: listeners, state: "occupied" }
 
-  const owned = listeners.every((pid) => processDescendsFrom(processes, pid, codex.pid))
   return {
-    codexPid: codex.pid,
+    codexPid,
     listenerPids: listeners,
-    state: owned ? "codex" : "occupied",
+    state: "codex",
   }
 }
 
@@ -141,10 +228,8 @@ export async function findAvailableCdpPort(
   throw new Error(`No free loopback port was found between ${preferredPort} and ${lastPort}.`)
 }
 
-export async function isCodexRunning(appPath: string) {
-  const executable = resolveAppExecutable(appPath)
-  const { stdout } = await execFileAsync("ps", ["-ax", "-o", "command="])
-  return processListContainsExecutable(stdout, executable)
+export async function isCodexRunning(_appPath: string, options: RunningApplicationsOptions = {}) {
+  return (await (options.runningProcessIdsImpl || runningCodexProcessIds)()).length > 0
 }
 
 /** Requests a normal application quit so Codex can persist its state before relaunch. */
@@ -165,20 +250,15 @@ export async function waitForCodexExit(appPath: string, options: WaitForCodexExi
   }
 }
 
-/** Returns the main ChatGPT process id, excluding renderer and helper processes. */
-export async function findCodexProcessId(appPath: string) {
-  const executable = resolveAppExecutable(appPath)
-  const { stdout } = await execFileAsync("ps", ["-ax", "-o", "pid=,command="])
-  for (const line of stdout.split("\n")) {
-    const match = line.trim().match(/^(\d+)\s+(.+)$/)
-    if (!match) continue
-    const [, rawPid, command] = match
-    if (command === executable || command?.startsWith(`${executable} `)) return Number(rawPid)
-  }
-  return null
+/** Returns the native Codex application PID from the macOS application registry. */
+export async function findCodexProcessId(
+  _appPath: string,
+  options: RunningApplicationsOptions = {},
+) {
+  return (await (options.runningProcessIdsImpl || runningCodexProcessIds)())[0] ?? null
 }
 
-export function launchCodex({
+export async function launchCodex({
   appPath,
   port,
   spawnImpl,
@@ -187,10 +267,14 @@ export function launchCodex({
   port: number
   spawnImpl?: SpawnImplementation
 }) {
-  const child = (spawnImpl || spawn)(resolveAppExecutable(appPath), buildLaunchArguments(port), {
-    detached: true,
-    stdio: "ignore",
-  })
+  const child = (spawnImpl || spawn)(
+    await resolveAppExecutable(appPath),
+    buildLaunchArguments(port),
+    {
+      detached: true,
+      stdio: "ignore",
+    },
+  )
   child.unref()
   return child.pid
 }

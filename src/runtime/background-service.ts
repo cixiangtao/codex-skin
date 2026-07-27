@@ -1,10 +1,6 @@
 import { access } from "node:fs/promises"
 
 import { isCdpAvailable } from "./cdp.ts"
-import { configuredBackgroundImages, writeConfig } from "./config.ts"
-import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
-import { ensureDaemon, stopDaemon } from "./daemon.ts"
-import { injectAllTargets, removeFromAllTargets } from "./injector.ts"
 import {
   appExecutableExists,
   findAvailableCdpPort,
@@ -12,14 +8,17 @@ import {
   isCodexRunning,
   launchCodex,
   quitCodex,
-  resolveAppExecutable,
   waitForCodexExit,
-} from "./macos.ts"
-import type { CdpPortInspection } from "./macos.ts"
+} from "./client.ts"
+import { configuredBackgroundImages, writeConfig } from "./config.ts"
+import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
+import { ensureDaemon, stopDaemon } from "./daemon.ts"
+import { injectAllTargets, removeFromAllTargets } from "./injector.ts"
 import {
   BACKGROUND_SURFACES,
   type BackgroundApplication,
   type BackgroundConfig,
+  type CdpPortInspection,
   type InjectionResult,
 } from "./types.ts"
 
@@ -35,10 +34,14 @@ interface ServiceOptions {
   isCdpAvailableImpl?: (options: { port: number }) => Promise<boolean>
   isCodexRunningImpl?: (appPath: string) => Promise<boolean>
   inspectCdpPortImpl?: (appPath: string, port: number) => Promise<CdpPortInspection>
-  launchCodexImpl?: (options: { appPath: string; port: number }) => number | undefined
+  launchCodexImpl?: (options: {
+    appPath: string
+    port: number
+  }) => Promise<number | undefined> | number | undefined
   quitCodexImpl?: () => Promise<void>
   removeFromAllTargetsImpl?: (options: { port: number }) => Promise<number>
   restartRunningCodex?: boolean
+  startupPollIntervalMs?: number
   stopDaemonImpl?: () => Promise<number | null>
   timeoutMs?: number
   waitForCodexExitImpl?: (appPath: string) => Promise<void>
@@ -84,7 +87,7 @@ export async function waitForCdp(config: BackgroundConfig, options: ServiceOptio
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     if ((await configuredCdpIsReady(config, options)).httpReady) return true
-    await new Promise<void>((resolve) => setTimeout(resolve, 250))
+    await new Promise<void>((resolve) => setTimeout(resolve, options.startupPollIntervalMs ?? 250))
   }
   return false
 }
@@ -108,6 +111,28 @@ export async function injectConfiguredBackground(
     )
   }
   return successes.length
+}
+
+/** Waits for the main Codex renderer, which can appear after the CDP port starts listening. */
+async function waitForConfiguredInjection(
+  config: BackgroundConfig,
+  options: ServiceOptions,
+): Promise<number> {
+  const timeoutMs = options.timeoutMs ?? 15_000
+  const deadline = Date.now() + timeoutMs
+  let lastError: BackgroundStateError | undefined
+
+  do {
+    try {
+      return await injectConfiguredBackground(config, options)
+    } catch (error) {
+      if (!(error instanceof BackgroundStateError) || error.code !== "NO_TARGETS") throw error
+      lastError = error
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, options.startupPollIntervalMs ?? 250))
+  } while (Date.now() < deadline)
+
+  throw lastError
 }
 
 async function validateConfiguredImages(config: BackgroundConfig) {
@@ -160,10 +185,7 @@ export async function startConfiguredBackground(
   options: ServiceOptions = {},
 ): Promise<BackgroundApplication> {
   if (!(await (options.appExecutableExistsImpl || appExecutableExists)(config.appPath))) {
-    throw new BackgroundStateError(
-      "APP_MISSING",
-      `ChatGPT executable not found: ${resolveAppExecutable(config.appPath)}`,
-    )
+    throw new BackgroundStateError("APP_MISSING", `Codex app not found: ${config.appPath}`)
   }
 
   let running = await (options.isCodexRunningImpl || isCodexRunning)(config.appPath)
@@ -204,7 +226,7 @@ export async function startConfiguredBackground(
     running = false
   }
   if (!running) {
-    ;(options.launchCodexImpl || launchCodex)({
+    await (options.launchCodexImpl || launchCodex)({
       appPath: activeConfig.appPath,
       port: activeConfig.port,
     })
@@ -218,7 +240,7 @@ export async function startConfiguredBackground(
 
   const targets =
     activeConfig.enabled && (await validateConfiguredImages(activeConfig))
-      ? await injectConfiguredBackground(activeConfig, options)
+      ? await waitForConfiguredInjection(activeConfig, options)
       : 0
   if (!options.entryPath) throw new Error("The CLI entry path is required to start the daemon.")
   const daemon = await (options.ensureDaemonImpl || ensureDaemon)({ entryPath: options.entryPath })

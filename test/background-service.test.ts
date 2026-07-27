@@ -257,6 +257,34 @@ test("startConfiguredBackground restarts Codex after the user confirms", async (
   }
 })
 
+test("startConfiguredBackground waits for the main renderer after CDP starts listening", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
+  try {
+    const image = path.join(directory, "wallpaper.jpg")
+    await writeFile(image, Buffer.from([0xff, 0xd8, 0xff]))
+    let attempts = 0
+    const result = await startConfiguredBackground(normalizeConfig({ image }), {
+      entryPath: "/tmp/codex-skin.mjs",
+      appExecutableExistsImpl: async () => true,
+      ensureDaemonImpl: async () => ({ pid: 91 }),
+      injectAllTargetsImpl: async () => {
+        attempts += 1
+        return attempts < 3 ? [] : [{ ok: true }]
+      },
+      isCdpAvailableImpl: async () => true,
+      isCodexRunningImpl: async () => true,
+      startupPollIntervalMs: 0,
+      timeoutMs: 100,
+    })
+
+    assert.equal(attempts, 3)
+    assert.equal(result.mode, "started")
+    assert.equal(result.targets, 1)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
 test("startConfiguredBackground rejects a fixed port owned by another process", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-service-"))
   try {

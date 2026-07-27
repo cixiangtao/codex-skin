@@ -5,10 +5,13 @@ import { test } from "vitest"
 import {
   buildLaunchArguments,
   findAvailableCdpPort,
+  findCodexProcessId,
   inspectCdpPort,
+  isCodexRunning,
+  parseInstalledApplicationPaths,
   parseProcessTable,
+  parseRunningApplicationPids,
   processDescendsFrom,
-  processListContainsExecutable,
   resolveAppExecutable,
   waitForCodexExit,
 } from "../src/runtime/macos.ts"
@@ -25,19 +28,31 @@ test("waitForCodexExit keeps polling until Codex fully exits", async () => {
   assert.equal(checks, 4)
 })
 
-test("resolveAppExecutable targets the signed app executable", () => {
+test("resolveAppExecutable reads the executable name from app bundle metadata", async () => {
   assert.equal(
-    resolveAppExecutable("/Applications/ChatGPT.app"),
-    "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT",
+    await resolveAppExecutable("/Applications/Renamed Codex.app", {
+      installedAppPathsImpl: async () => [],
+      readBundleValueImpl: async (_appPath, key) =>
+        key === "CFBundleIdentifier" ? "com.openai.codex" : "Codex Desktop",
+    }),
+    "/Applications/Renamed Codex.app/Contents/MacOS/Codex Desktop",
+  )
+})
+
+test("installation lookup normalizes and deduplicates Launch Services paths", () => {
+  assert.deepEqual(
+    parseInstalledApplicationPaths(
+      '["/Applications/ChatGPT.app", "/Applications/ChatGPT.app", null]',
+    ),
+    ["/Applications/ChatGPT.app"],
   )
 })
 
 test("inspectCdpPort accepts only listeners in the Codex process tree", async () => {
-  const executable = resolveAppExecutable("/Applications/ChatGPT.app")
   const processes = parseProcessTable(
     [
-      `10 1 ${executable} --remote-debugging-port=9229`,
-      "11 10 /Applications/ChatGPT.app/Contents/Frameworks/Codex Helper",
+      "10 1 /Applications/Renamed Codex.app/Contents/MacOS/Codex",
+      "11 10 /Applications/Renamed Codex.app/Contents/Frameworks/Codex Helper",
       "20 1 /Applications/Other.app/Other",
     ].join("\n"),
   )
@@ -47,12 +62,15 @@ test("inspectCdpPort accepts only listeners in the Codex process tree", async ()
   const codex = await inspectCdpPort("/Applications/ChatGPT.app", 9229, {
     listenerPidsImpl: async () => [10, 11],
     processTableImpl: async () => processes,
+    runningProcessIdsImpl: async () => [10],
   })
   assert.equal(codex.state, "codex")
+  assert.equal(codex.codexPid, 10)
 
   const occupied = await inspectCdpPort("/Applications/ChatGPT.app", 9229, {
     listenerPidsImpl: async () => [11, 20],
     processTableImpl: async () => processes,
+    runningProcessIdsImpl: async () => [10],
   })
   assert.equal(occupied.state, "occupied")
 
@@ -79,14 +97,18 @@ test("buildLaunchArguments binds CDP to loopback", () => {
   ])
 })
 
-test("processListContainsExecutable matches the GUI process without matching helpers", () => {
-  const executable = "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"
-  const processList = [
-    "/Applications/ChatGPT.app/Contents/Resources/codex app-server",
-    executable,
-    "/bin/zsh -lc something else",
-  ].join("\n")
-
-  assert.equal(processListContainsExecutable(processList, executable), true)
-  assert.equal(processListContainsExecutable(processList, "/Applications/Other.app/Other"), false)
+test("running application lookup uses the native application identity instead of its path", async () => {
+  assert.deepEqual(parseRunningApplicationPids("[42, 42, 0, null]"), [42])
+  assert.equal(
+    await isCodexRunning("/Applications/Renamed Codex.app", {
+      runningProcessIdsImpl: async () => [42],
+    }),
+    true,
+  )
+  assert.equal(
+    await findCodexProcessId("/Applications/Another Name.app", {
+      runningProcessIdsImpl: async () => [42],
+    }),
+    42,
+  )
 })

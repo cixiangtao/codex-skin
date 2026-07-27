@@ -9,12 +9,12 @@ import {
   injectConfiguredBackground,
   startConfiguredBackground,
 } from "./background-service.ts"
+import { appExecutableExists, isCodexRunning } from "./client.ts"
 import { configuredBackgroundImages, readConfig, resolveConfigPath, writeConfig } from "./config.ts"
 import { buildBackgroundCss, imageFileToDataUrl } from "./css.ts"
 import { readDaemonPid, runDaemon, stopDaemon } from "./daemon.ts"
 import { removeFromAllTargets, verifyAllTargets } from "./injector.ts"
 import type { TargetVerification } from "./injector.ts"
-import { appExecutableExists, isCodexRunning } from "./macos.ts"
 import { runBackgroundRestartWorker, stopBackgroundRestartWorker } from "./restart-worker.ts"
 import {
   ensureSettingsServer,
@@ -115,7 +115,7 @@ Options:
   --opacity 0..1               Illustration-only opacity
   --port 1024..65535           Loopback CDP port (default 9229)
   --auto-port                  Automatically move away from port collisions
-  --app-path PATH              ChatGPT.app location
+  --app-path PATH              Codex client location override
   --reload                     Reload Codex before functional verification
 `
 
@@ -354,7 +354,7 @@ async function doctor(io: CommandIo) {
     ).every(Boolean)
   const checks: Array<[string, boolean]> = [
     ["Node.js 22+", isSupportedNodeVersion()],
-    ["ChatGPT executable", await appExecutableExists(config.appPath)],
+    ["Codex client installed", await appExecutableExists(config.appPath)],
     ["Background image configured", configuredImages.length > 0],
     ["Background image readable", configuredImagesReadable],
     [`Codex-owned CDP 127.0.0.1:${config.port}`, cdp.httpReady],

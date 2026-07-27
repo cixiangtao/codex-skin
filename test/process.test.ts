@@ -9,14 +9,15 @@ test("parseProcessList preserves commands and ignores malformed rows", () => {
     parseProcessList(`
   42 /opt/bun /tmp/bin/codex-skin.ts daemon
 not-a-process
-  77 /Applications/ChatGPT.app/Contents/MacOS/ChatGPT --remote-debugging-port=9229
+  77 /Applications/Renamed Codex.app/Contents/MacOS/Codex --remote-debugging-port=9229
 
 `),
     [
       { pid: 42, command: "/opt/bun /tmp/bin/codex-skin.ts daemon" },
       {
         pid: 77,
-        command: "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT --remote-debugging-port=9229",
+        command:
+          "/Applications/Renamed Codex.app/Contents/MacOS/Codex --remote-debugging-port=9229",
       },
     ],
   )
