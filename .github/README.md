@@ -179,7 +179,7 @@ Codex Skin 不会修改 `app.asar`、`ElectronAsarIntegrity`、应用签名、�
 
 ## 本地开发
 
-本地开发额外依赖 [Bun 1.3.14](https://bun.sh/)。Node.js 仍需满足 22+；其余 React、TypeScript、Vite+、Vite、Tailwind CSS 与 Vitest 依赖均由 `bun install` 安装。
+本地开发额外依赖 [Bun 1.3.14](https://bun.sh/)。Node.js 仍需满足 22+；其余 React、TypeScript、electron-vite、Vite、Tailwind CSS、Oxc 与 Vitest 依赖均由 `bun install` 安装。
 
 ```bash
 bun install
@@ -189,18 +189,20 @@ bun dev:server   # 仅启动设置接口，监听 127.0.0.1:4179
 bun run test     # 运行测试
 bun run check    # 运行代码检查
 bun run build    # 构建界面与命令行程序
-bun run desktop  # 生成并打开带正式名称和图标的 Codex Skin.app
+bun run desktop  # 启动支持热更新的 Electron 开发环境
+bun run desktop:open # 生成并打开带正式名称和图标的 Codex Skin.app
 ```
 
 `bun dev` 会启动开发界面与本地接口，然后复用 `npx codex-skin` 的默认启动流程：打开设置页、启动 Codex，并在存在已启用配置时自动应用背景；首次无配置时只启动 Codex，不注入任何背景样式。需要重启已有 Codex 时，同样会把退出轮询与重新启动交给独立后台任务。按下 `Ctrl+C` 后，Vite 与本地接口两个开发子进程会一并停止。
 
 `bun run desktop:dev` 会直接使用 Electron 开发宿主，适合快速调试主进程，但 macOS 可能把
 宿主名称显示为 Electron；需要验证真实应用名称、Dock 图标或应用包元数据时，应使用
-`bun run desktop`。
+`bun run desktop:open`。
 
-项目使用 Bun 和 TypeScript 开发，设置界面基于 React、Tailwind CSS 4、Vite+ 与 Vite，测试使用
-Vitest。npm 包继续提供编译后的 CLI，但它属于开发与支持工具；普通用户使用包含完整运行环境的
-客户端。
+项目使用 Bun 和 TypeScript 开发。electron-vite 统一构建 Electron 主进程与设置界面，界面基于
+React、Tailwind CSS 4 和 Vite；Oxfmt、Oxlint、TypeScript 与 Vitest 分别负责格式化、代码检查、
+类型检查和测试。npm 包继续提供编译后的 CLI，但它属于开发与支持工具；普通用户使用包含完整
+运行环境的客户端。
 
 ### 内置背景素材
 
