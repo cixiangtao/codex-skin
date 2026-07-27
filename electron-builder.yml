@@ -16,6 +16,7 @@ mac:
   category: public.app-category.utilities
   entitlements: apps/desktop/build/entitlements.mac.plist
   entitlementsInherit: apps/desktop/build/entitlements.mac.inherit.plist
+  icon: apps/desktop/build/icon.icns
   extendInfo:
     NSAppleEventsUsageDescription: Codex Skin 需要正常退出并重新打开 Codex，以启用主题背景。
   hardenedRuntime: true

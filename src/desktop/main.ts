@@ -1,7 +1,7 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { app, BrowserWindow, dialog, Menu, shell } from "electron"
+import { app, BrowserWindow, dialog, Menu, nativeImage, shell } from "electron"
 
 import { createCodexSkinCore } from "../core/index.ts"
 import type { CodexSkinCore } from "../core/index.ts"
@@ -12,7 +12,9 @@ import { createDesktopBackgroundLifecycle } from "./background-lifecycle.ts"
 
 type SettingsServer = Awaited<ReturnType<typeof listenSettingsServer>>
 
-app.setName("Codex Skin")
+const APPLICATION_NAME = "Codex Skin"
+
+app.setName(APPLICATION_NAME)
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 const dataDirectory = resolveDataDirectory()
 let core: CodexSkinCore | undefined
@@ -27,6 +29,16 @@ function uiRoot() {
     : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/ui")
 }
 
+function installDevelopmentDockIcon() {
+  if (app.isPackaged || process.platform !== "darwin") return
+  const iconPath = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../apps/desktop/build/icon.png",
+  )
+  const icon = nativeImage.createFromPath(iconPath)
+  if (!icon.isEmpty()) app.dock.setIcon(icon)
+}
+
 function showMainWindow() {
   if (!mainWindow) return
   if (mainWindow.isMinimized()) mainWindow.restore()
@@ -38,7 +50,7 @@ function installApplicationMenu() {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       {
-        label: "Codex Skin",
+        label: APPLICATION_NAME,
         submenu: [
           { label: "打开设置", accelerator: "CommandOrControl+,", click: showMainWindow },
           { type: "separator" },
@@ -82,7 +94,7 @@ async function createMainWindow(server: SettingsServer) {
     minHeight: 680,
     minWidth: 960,
     show: false,
-    title: "Codex Skin",
+    title: APPLICATION_NAME,
     width: 1180,
     webPreferences: {
       contextIsolation: true,
@@ -169,6 +181,7 @@ if (!hasSingleInstanceLock) {
   void app
     .whenReady()
     .then(async () => {
+      installDevelopmentDockIcon()
       installApplicationMenu()
       const lifecycle = createDesktopBackgroundLifecycle({
         dataDirectory,
