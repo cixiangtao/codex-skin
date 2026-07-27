@@ -1,16 +1,15 @@
 import { spawn } from "node:child_process"
-import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
 
-import { isCdpAvailable } from "./cdp.ts"
-import { findCodexProcessId, inspectCdpPort } from "./client.ts"
-import { configuredBackgroundImages, readConfig, resolveDataDirectory } from "./config.ts"
-import { buildBackgroundCss } from "./css.ts"
-import { removeFromAllTargets, TargetSessionManager } from "./injector.ts"
+import { runBackgroundMonitor } from "./background-monitor.ts"
+import { resolveDataDirectory } from "./config.ts"
 import { inspectProcess, listProcesses } from "./process.ts"
 import type { ProcessIdentity, ProcessSummary } from "./process.ts"
 import type { DataDirectoryOptions, SpawnImplementation } from "./types.ts"
-import { errorCode, errorMessage } from "./types.ts"
+import { errorCode } from "./types.ts"
+
+export { codexLifecycleEnded } from "./background-monitor.ts"
 
 interface DaemonIdentity extends ProcessIdentity {
   entryPath: string
@@ -239,10 +238,6 @@ export async function stopDaemon(options: DaemonOptions = {}) {
   return trackedPid || pids[0] || null
 }
 
-export function codexLifecycleEnded(observedCodex: boolean, codexPid: number | null) {
-  return observedCodex && codexPid === null
-}
-
 /** Keeps new Codex windows synchronized and exits when the Codex app closes. */
 export async function runDaemon(options: DaemonOptions = {}) {
   const paths = runtimePaths(options)
@@ -253,84 +248,20 @@ export async function runDaemon(options: DaemonOptions = {}) {
   const identity = { ...actual, entryPath, executable: process.execPath, pid: process.pid }
   if (!(await claimDaemonLock(identity, options))) return
   await writeDaemonIdentity(identity, options)
-  let stopping = false
-  let observedCodex = false
-  const stop = () => {
-    stopping = true
-  }
+  const controller = new AbortController()
+  const stop = () => controller.abort()
   process.once("SIGTERM", stop)
   process.once("SIGINT", stop)
-  let cachedConfig = ""
-  let cachedCss = ""
-  let targetSessions: TargetSessionManager | undefined
-  let sessionPort: number | undefined
 
   try {
-    while (!stopping) {
-      let pollIntervalMs = 3000
-      try {
-        const config = await readConfig(options)
-        pollIntervalMs = config.pollIntervalMs
-        const codexPid = await findCodexProcessId(config.appPath)
-        if (codexPid) observedCodex = true
-        else if (codexLifecycleEnded(observedCodex, codexPid)) break
-
-        const cdpPort = await inspectCdpPort(config.appPath, config.port)
-        const cdpReady = cdpPort.state === "codex" && (await isCdpAvailable({ port: config.port }))
-        const hasConfiguredBackground = configuredBackgroundImages(config).length > 0
-        if (config.enabled && hasConfiguredBackground && cdpReady) {
-          const signature = JSON.stringify(config)
-          if (signature !== cachedConfig) {
-            cachedCss = await buildBackgroundCss(config)
-            cachedConfig = signature
-          }
-          if (!targetSessions || sessionPort !== config.port) {
-            targetSessions?.close()
-            sessionPort = config.port
-            targetSessions = new TargetSessionManager({
-              port: config.port,
-              onError: (error) => {
-                appendFile(paths.log, `${new Date().toISOString()} ${error.message}\n`, {
-                  mode: 0o600,
-                }).catch(() => undefined)
-              },
-            })
-          }
-          const results = await targetSessions.synchronize(cachedCss)
-          const now = new Date().toISOString()
-          await writeFile(
-            paths.state,
-            `${JSON.stringify(
-              {
-                pid: process.pid,
-                codexPid,
-                updatedAt: now,
-                injectedTargets: results.filter((result) => result.ok).length,
-                failedTargets: results.filter((result) => !result.ok).length,
-              },
-              null,
-              2,
-            )}\n`,
-            { mode: 0o600 },
-          )
-        } else if (targetSessions) {
-          const removalPort = sessionPort || config.port
-          targetSessions.close()
-          targetSessions = undefined
-          sessionPort = undefined
-          cachedConfig = ""
-          cachedCss = ""
-          await removeFromAllTargets({ port: removalPort }).catch(() => undefined)
-        }
-      } catch (error) {
-        await appendFile(paths.log, `${new Date().toISOString()} ${errorMessage(error)}\n`, {
-          mode: 0o600,
-        })
-      }
-      await new Promise<void>((resolve) => setTimeout(resolve, pollIntervalMs))
-    }
+    await runBackgroundMonitor({
+      ...options,
+      exitWhenCodexCloses: true,
+      signal: controller.signal,
+    })
   } finally {
-    targetSessions?.close()
+    process.removeListener("SIGTERM", stop)
+    process.removeListener("SIGINT", stop)
     const current = await readFile(paths.process, "utf8")
       .then((value) => JSON.parse(value) as DaemonIdentity)
       .catch(() => null)
@@ -338,6 +269,5 @@ export async function runDaemon(options: DaemonOptions = {}) {
       await Promise.all([rm(paths.pid, { force: true }), rm(paths.process, { force: true })])
     }
     await releaseDaemonLock(process.pid, options)
-    await rm(paths.state, { force: true })
   }
 }
