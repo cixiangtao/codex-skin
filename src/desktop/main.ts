@@ -9,13 +9,16 @@ import { BackgroundStateError } from "../runtime/background-service.ts"
 import { readConfig, resolveDataDirectory } from "../runtime/config.ts"
 import { listenSettingsServer } from "../runtime/settings-server.ts"
 import { createDesktopBackgroundLifecycle } from "./background-lifecycle.ts"
+import { desktopDevelopmentSettings, desktopNavigationOrigins } from "./development.ts"
 
 type SettingsServer = Awaited<ReturnType<typeof listenSettingsServer>>
 
 const APPLICATION_NAME = "Codex Skin"
+const developmentRendererUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
+const isDevelopment = Boolean(developmentRendererUrl)
 
 app.setName(APPLICATION_NAME)
-const hasSingleInstanceLock = app.requestSingleInstanceLock()
+const hasSingleInstanceLock = isDevelopment || app.requestSingleInstanceLock()
 const dataDirectory = resolveDataDirectory()
 let core: CodexSkinCore | undefined
 let mainWindow: BrowserWindow | undefined
@@ -23,14 +26,18 @@ let readyToQuit = false
 let settingsServer: SettingsServer | undefined
 let shutdownTask: Promise<void> | undefined
 
+function projectRoot() {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+}
+
 function uiRoot() {
   return app.isPackaged
     ? path.join(process.resourcesPath, "ui")
-    : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/ui")
+    : path.join(projectRoot(), "dist/ui")
 }
 
 function installDevelopmentDockIcon() {
-  if (app.isPackaged || process.platform !== "darwin") return
+  if (app.isPackaged || process.platform !== "darwin" || !app.dock) return
   const iconPath = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     "../apps/desktop/build/icon.png",
@@ -40,7 +47,7 @@ function installDevelopmentDockIcon() {
 }
 
 function showMainWindow() {
-  if (!mainWindow) return
+  if (!mainWindow || mainWindow.isDestroyed()) return
   if (mainWindow.isMinimized()) mainWindow.restore()
   mainWindow.show()
   mainWindow.focus()
@@ -86,8 +93,8 @@ function installApplicationMenu() {
   )
 }
 
-async function createMainWindow(server: SettingsServer) {
-  const allowedOrigin = new URL(server.url).origin
+async function createMainWindow(server: SettingsServer, rendererUrl?: string) {
+  const allowedOrigins = desktopNavigationOrigins(server.url, rendererUrl)
   const window = new BrowserWindow({
     backgroundColor: "#f2f0e8",
     height: 820,
@@ -111,7 +118,7 @@ async function createMainWindow(server: SettingsServer) {
   })
   window.on("ready-to-show", () => window.show())
   window.webContents.on("will-navigate", (event, navigationUrl) => {
-    if (new URL(navigationUrl).origin === allowedOrigin) return
+    if (allowedOrigins.has(new URL(navigationUrl).origin)) return
     event.preventDefault()
   })
   window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => {
@@ -181,6 +188,8 @@ if (!hasSingleInstanceLock) {
   void app
     .whenReady()
     .then(async () => {
+      const rendererUrl = developmentRendererUrl
+      const developmentSettings = desktopDevelopmentSettings(rendererUrl, projectRoot())
       installDevelopmentDockIcon()
       installApplicationMenu()
       const lifecycle = createDesktopBackgroundLifecycle({
@@ -193,8 +202,9 @@ if (!hasSingleInstanceLock) {
         dataDirectory,
         idleTimeoutMs: null,
         uiRoot: uiRoot(),
+        ...developmentSettings,
       })
-      await createMainWindow(settingsServer)
+      await createMainWindow(settingsServer, rendererUrl)
       if (process.env.CODEX_SKIN_SKIP_AUTO_START !== "1") void startBackgroundOnLaunch(core)
     })
     .catch((error) => {

@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": ["dist", "desktop-dist", "release", "node_modules", "bun.lock"],
+  "printWidth": 100,
+  "semi": false,
+  "sortImports": {
+    "order": "asc"
+  },
+  "sortPackageJson": true,
+  "sortTailwindcss": {
+    "stylesheet": "./src/ui/styles.css"
+  }
+}

@@ -12,5 +12,5 @@
     "target": "ES2024",
     "types": ["node"]
   },
-  "include": ["bin", "scripts", "src", "test", "vite.config.ts"]
+  "include": ["bin", "scripts", "src", "test", "electron.vite.config.ts", "vite.renderer.config.ts"]
 }
