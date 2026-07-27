@@ -13,6 +13,10 @@
 bun run desktop
 ```
 
+该命令会生成并打开真正的 `Codex Skin.app`，因此系统显示的应用名称和图标与正式客户端一致。
+仅调试 Electron 主进程时可以运行 `bun run desktop:dev`；该模式直接使用 Electron 开发宿主，
+macOS 可能仍将宿主识别为 Electron。
+
 生成本机可运行的 macOS 应用：
 
 ```bash
