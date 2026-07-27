@@ -22,8 +22,20 @@ import {
   type InjectionResult,
 } from "./types.ts"
 
-interface ServiceOptions {
+/** Owns the long-running background task without coupling the engine to a CLI process. */
+export interface BackgroundLifecycleAdapter {
+  /** Reports whether the caller-owned synchronization task is currently active, when available. */
+  isRunning?(): Promise<boolean>
+  /** Starts or reuses the caller-owned task that keeps new Codex windows synchronized. */
+  start(): Promise<{ pid: number } & Record<string, unknown>>
+  /** Stops only the task owned by this adapter and returns its previous process id. */
+  stop(): Promise<number | null>
+}
+
+/** Replaceable runtime dependencies shared by the CLI, settings server, and desktop clients. */
+export interface BackgroundServiceOptions {
   appExecutableExistsImpl?: (appPath: string) => Promise<boolean>
+  backgroundLifecycle?: BackgroundLifecycleAdapter
   ensureDaemonImpl?: (options: {
     entryPath: string
   }) => Promise<{ pid: number } & Record<string, unknown>>
@@ -58,7 +70,7 @@ export class BackgroundStateError extends Error {
   }
 }
 
-async function inspectConfiguredPort(config: BackgroundConfig, options: ServiceOptions) {
+async function inspectConfiguredPort(config: BackgroundConfig, options: BackgroundServiceOptions) {
   if (options.inspectCdpPortImpl) {
     return await options.inspectCdpPortImpl(config.appPath, config.port)
   }
@@ -74,7 +86,10 @@ async function inspectConfiguredPort(config: BackgroundConfig, options: ServiceO
   return await inspectCdpPort(config.appPath, config.port)
 }
 
-export async function configuredCdpIsReady(config: BackgroundConfig, options: ServiceOptions = {}) {
+export async function configuredCdpIsReady(
+  config: BackgroundConfig,
+  options: BackgroundServiceOptions = {},
+) {
   const inspection = await inspectConfiguredPort(config, options)
   const httpReady =
     inspection.state === "codex" &&
@@ -82,7 +97,7 @@ export async function configuredCdpIsReady(config: BackgroundConfig, options: Se
   return { httpReady, inspection }
 }
 
-export async function waitForCdp(config: BackgroundConfig, options: ServiceOptions = {}) {
+export async function waitForCdp(config: BackgroundConfig, options: BackgroundServiceOptions = {}) {
   const timeoutMs = options.timeoutMs ?? 15_000
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
@@ -94,7 +109,7 @@ export async function waitForCdp(config: BackgroundConfig, options: ServiceOptio
 
 export async function injectConfiguredBackground(
   config: BackgroundConfig,
-  options: ServiceOptions = {},
+  options: BackgroundServiceOptions = {},
 ) {
   const css = await buildBackgroundCss(config)
   const inject = options.injectAllTargetsImpl || injectAllTargets
@@ -116,7 +131,7 @@ export async function injectConfiguredBackground(
 /** Waits for the main Codex renderer, which can appear after the CDP port starts listening. */
 async function waitForConfiguredInjection(
   config: BackgroundConfig,
-  options: ServiceOptions,
+  options: BackgroundServiceOptions,
 ): Promise<number> {
   const timeoutMs = options.timeoutMs ?? 15_000
   const deadline = Date.now() + timeoutMs
@@ -142,22 +157,34 @@ async function validateConfiguredImages(config: BackgroundConfig) {
   return true
 }
 
+async function startBackgroundLifecycle(options: BackgroundServiceOptions) {
+  if (options.backgroundLifecycle) return await options.backgroundLifecycle.start()
+  if (!options.entryPath) {
+    throw new Error("A background lifecycle or CLI entry path is required.")
+  }
+  return await (options.ensureDaemonImpl || ensureDaemon)({ entryPath: options.entryPath })
+}
+
+async function stopBackgroundLifecycle(options: BackgroundServiceOptions) {
+  if (options.backgroundLifecycle) return await options.backgroundLifecycle.stop()
+  return await (options.stopDaemonImpl || stopDaemon)()
+}
+
 export async function syncConfiguredBackground(
   config: BackgroundConfig,
-  options: ServiceOptions = {},
+  options: BackgroundServiceOptions = {},
 ): Promise<BackgroundApplication> {
-  const stop = options.stopDaemonImpl || stopDaemon
   const remove = options.removeFromAllTargetsImpl || removeFromAllTargets
 
   if (!config.enabled) {
-    const pid = await stop()
+    const pid = await stopBackgroundLifecycle(options)
     const { httpReady } = await configuredCdpIsReady(config, options)
     const targets = httpReady ? await remove({ port: config.port }) : 0
     return { applied: true, mode: "removed", pid, targets }
   }
 
   if (!(await validateConfiguredImages(config))) {
-    const pid = await stop()
+    const pid = await stopBackgroundLifecycle(options)
     const { httpReady } = await configuredCdpIsReady(config, options)
     const targets = httpReady ? await remove({ port: config.port }) : 0
     return { applied: true, mode: "removed", pid, targets }
@@ -174,15 +201,16 @@ export async function syncConfiguredBackground(
   }
 
   const targets = await injectConfiguredBackground(config, options)
-  const daemon = options.entryPath
-    ? await (options.ensureDaemonImpl || ensureDaemon)({ entryPath: options.entryPath })
-    : undefined
+  const daemon =
+    options.backgroundLifecycle || options.entryPath
+      ? await startBackgroundLifecycle(options)
+      : undefined
   return { applied: true, mode: "injected", targets, daemon }
 }
 
 export async function startConfiguredBackground(
   config: BackgroundConfig,
-  options: ServiceOptions = {},
+  options: BackgroundServiceOptions = {},
 ): Promise<BackgroundApplication> {
   if (!(await (options.appExecutableExistsImpl || appExecutableExists)(config.appPath))) {
     throw new BackgroundStateError("APP_MISSING", `Codex app not found: ${config.appPath}`)
@@ -220,7 +248,7 @@ export async function startConfiguredBackground(
         "Codex is running without background support. Quit Codex normally, keep this page open, then try again.",
       )
     }
-    await (options.stopDaemonImpl || stopDaemon)()
+    await stopBackgroundLifecycle(options)
     await (options.quitCodexImpl || quitCodex)()
     await (options.waitForCodexExitImpl || waitForCodexExit)(config.appPath)
     running = false
@@ -242,12 +270,14 @@ export async function startConfiguredBackground(
     activeConfig.enabled && (await validateConfiguredImages(activeConfig))
       ? await waitForConfiguredInjection(activeConfig, options)
       : 0
-  if (!options.entryPath) throw new Error("The CLI entry path is required to start the daemon.")
-  const daemon = await (options.ensureDaemonImpl || ensureDaemon)({ entryPath: options.entryPath })
+  const daemon = await startBackgroundLifecycle(options)
   return { applied: true, mode: "started", port: activeConfig.port, targets, daemon }
 }
 
-export async function backgroundStatus(config: BackgroundConfig, options: ServiceOptions = {}) {
+export async function backgroundStatus(
+  config: BackgroundConfig,
+  options: BackgroundServiceOptions = {},
+) {
   const { httpReady, inspection } = await configuredCdpIsReady(config, options)
   const surfaceEntries = await Promise.all(
     BACKGROUND_SURFACES.map(async (surface) => {
