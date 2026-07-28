@@ -2,6 +2,10 @@
 
 Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面美化工具。无需修改或重新签名 `ChatGPT.app`，即可通过可视化设置为 Codex 添加全局壁纸、主面板人物布景和侧边栏装饰，自由打造浅色、深色、二次元等个性化 Codex 主题。
 
+[访问项目主页](https://cixiangtao.github.io/codex-skin/) ·
+[查看 Releases](https://github.com/cixiangtao/codex-skin/releases) ·
+[查看 npm CLI](https://www.npmjs.com/package/codex-skin)
+
 > [!IMPORTANT]
 > Codex Skin 目前仅支持 macOS，并需要已安装 Codex 桌面端。面向普通用户的正式入口是
 > Codex Skin 客户端，客户端内置运行环境，无需安装 Node.js。CLI 仅作为开发、测试、无界面
@@ -26,6 +30,16 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
   为准。
 
 完整决策与后续维护规则见[桌面客户端优先决策](../docs/architecture/desktop-first.md)。
+
+## 发布渠道
+
+- **项目主页**通过 GitHub Pages 发布，集中展示产品能力、主题效果和正式下载入口。
+- **macOS 客户端**是面向普通用户的主发布渠道，正式版本通过 GitHub Releases 提供 DMG 和
+  ZIP。
+- **npm CLI**是独立的开发与支持渠道，只在 Core、CLI、共享运行时、诊断或恢复能力发生变化时
+  按需发布。
+- 仅涉及 Electron 界面、图标或桌面打包的变化，只发布客户端即可，不需要同步发布 npm 新版本。
+- 两个渠道共享 Core 和版本来源，但不要求每次发布同时产生两种分发物。
 
 ## Codex 主题换装效果
 
@@ -55,8 +69,8 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 
 ## 快速开始
 
-正式分发后，普通用户应从 Releases 下载并安装 `Codex Skin.app`。当前开发预览可以在源码目录
-生成本机应用：
+正式分发后，普通用户可以从[项目主页](https://cixiangtao.github.io/codex-skin/)进入 Releases
+下载并安装 `Codex Skin.app`。当前开发预览可以在源码目录生成本机应用：
 
 ```bash
 bun install
@@ -188,6 +202,8 @@ bun run check    # 运行代码检查
 bun run build    # 构建界面与命令行程序
 bun run desktop  # 启动支持热更新的 Electron 开发环境
 bun run desktop:open # 生成并打开带正式名称和图标的 Codex Skin.app
+bun run site      # 启动项目主页开发服务器
+bun run site:build # 构建 GitHub Pages 产物
 ```
 
 `bun run desktop` 会通过 electron-vite 同时启动 Electron 主进程、设置接口与支持热更新的界面；
@@ -198,6 +214,10 @@ macOS 可能把开发宿主显示为 Electron。需要验证真实应用名称�
 React、Tailwind CSS 4 和 Vite；Oxfmt、Oxlint、TypeScript 与 Vitest 分别负责格式化、代码检查、
 类型检查和测试。npm 包继续提供编译后的 CLI，但它属于开发与支持工具；普通用户使用包含完整
 运行环境的客户端。
+
+项目主页位于 `apps/site/`，使用独立 Vite 配置构建到 `site-dist/`。推送到 `main` 后，
+GitHub Actions 会构建并通过 GitHub Pages 发布；首次启用时需要在仓库 Pages 设置中将 Source
+设为 **GitHub Actions**。
 
 ### 内置背景素材
 
@@ -213,6 +233,28 @@ public/backgrounds/sidebar/    # 侧边栏人物或布景
 
 ## 发布
 
+桌面客户端和 npm CLI 是两个职责不同的发布渠道。发布前先根据实际变更范围选择对应分发物，
+不要把 npm 包当作桌面客户端的安装入口。
+
+### 桌面客户端
+
+生成本机 DMG 和 ZIP：
+
+```bash
+bun run desktop:dist
+```
+
+产物输出到 `release/`。该命令目前只完成本地构建，不会创建或上传 GitHub Release。客户端尚未
+接入 Apple Developer 签名、公证和 Intel Mac 构建，因此当前产物只能作为开发预览；完成这些
+发布条件后，再通过 GitHub Releases 面向普通用户分发。
+
+仅涉及 Electron 界面、应用图标或桌面打包的变化，不需要发布 npm CLI。
+
+### npm CLI
+
+只有当 Core、CLI、共享运行时、打包进 npm 的设置页，或诊断与恢复能力发生变化时，才发布 npm
+新版本。
+
 执行独立的发布前检查，不修改版本号，也不发布包：
 
 ```bash
@@ -225,7 +267,8 @@ bun run release:check
 bun run release
 ```
 
-发布命令会自动执行同一套发布前检查，然后更新版本号、创建发布提交与标签、推送到远端，并将编译后的包发布到 npm。
+该命令是 npm CLI 的发布流程：它会自动执行同一套发布前检查，然后更新版本号、创建发布提交与
+标签、推送到远端，并将编译后的 CLI 和设置页发布到 npm；它不会构建或上传桌面安装包。
 
 ## 语言计划
 

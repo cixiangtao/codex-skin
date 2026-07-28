@@ -3,6 +3,9 @@ node_modules/
 dist/
 desktop-dist/
 release/
+site-dist/
+output/playwright/
+.playwright-cli/
 .vite/
 *.log
 *.pid

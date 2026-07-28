@@ -1,0 +1,143 @@
+@import "tailwindcss" source(none);
+
+@source "./index.html";
+@source "./main.tsx";
+
+@theme {
+  --color-canvas: #f8fbf9;
+  --color-white: #ffffff;
+  --color-ink: #18241e;
+  --color-muted: #536159;
+  --color-line: #d5dfd9;
+  --color-brand: #1f7a55;
+  --color-brand-strong: #176342;
+  --color-mint: #ccebdc;
+  --color-mint-soft: #edf8f2;
+  --color-signal: #f4b83f;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    min-width: 320px;
+    overflow-x: clip;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-width: 320px;
+    margin: 0;
+    overflow-x: clip;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+
+  a {
+    text-decoration-thickness: from-font;
+  }
+
+  ::selection {
+    background: var(--color-mint);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 4px;
+  }
+}
+
+@layer components {
+  .nav-link {
+    position: relative;
+    transition: color 180ms ease;
+  }
+
+  .nav-link::after {
+    position: absolute;
+    right: 0;
+    bottom: -0.35rem;
+    left: 0;
+    height: 1px;
+    background: currentColor;
+    content: "";
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 180ms ease;
+  }
+
+  .nav-link:hover {
+    color: var(--color-brand);
+  }
+
+  .nav-link:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  .hero-stage {
+    animation: hero-stage-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .annotation::before {
+    position: absolute;
+    top: -1px;
+    left: 2.1rem;
+    width: 0;
+    height: 1px;
+    background: var(--color-brand);
+    content: "";
+    animation: annotation-line-in 650ms 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@keyframes hero-stage-in {
+  from {
+    clip-path: inset(0 0 8% 0);
+    opacity: 0.55;
+    transform: translateY(18px);
+  }
+
+  to {
+    clip-path: inset(0);
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes annotation-line-in {
+  to {
+    width: 2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

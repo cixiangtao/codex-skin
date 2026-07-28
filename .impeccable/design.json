@@ -1,0 +1,352 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-28T10:44:07Z",
+  "title": "Design System: Codex Skin",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "冷白画布",
+        "tonalRamp": [
+          "oklch(15% 0.004 157.2)",
+          "oklch(27% 0.004 157.2)",
+          "oklch(39% 0.004 157.2)",
+          "oklch(51% 0.004 157.2)",
+          "oklch(63% 0.004 157.2)",
+          "oklch(75% 0.004 157.2)",
+          "oklch(87% 0.004 157.2)",
+          "oklch(95% 0.004 157.2)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "纯白表面",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(27% 0 0)",
+          "oklch(39% 0 0)",
+          "oklch(51% 0 0)",
+          "oklch(63% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(87% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "石墨墨色",
+        "tonalRamp": [
+          "oklch(15% 0.020 162.8)",
+          "oklch(27% 0.020 162.8)",
+          "oklch(39% 0.020 162.8)",
+          "oklch(51% 0.020 162.8)",
+          "oklch(63% 0.020 162.8)",
+          "oklch(75% 0.020 162.8)",
+          "oklch(87% 0.020 162.8)",
+          "oklch(95% 0.020 162.8)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "灰绿说明色",
+        "tonalRamp": [
+          "oklch(15% 0.021 160.5)",
+          "oklch(27% 0.021 160.5)",
+          "oklch(39% 0.021 160.5)",
+          "oklch(51% 0.021 160.5)",
+          "oklch(63% 0.021 160.5)",
+          "oklch(75% 0.021 160.5)",
+          "oklch(87% 0.021 160.5)",
+          "oklch(95% 0.021 160.5)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "冷灰绿线",
+        "tonalRamp": [
+          "oklch(15% 0.013 159.9)",
+          "oklch(27% 0.013 159.9)",
+          "oklch(39% 0.013 159.9)",
+          "oklch(51% 0.013 159.9)",
+          "oklch(63% 0.013 159.9)",
+          "oklch(75% 0.013 159.9)",
+          "oklch(87% 0.013 159.9)",
+          "oklch(95% 0.013 159.9)"
+        ]
+      },
+      "brand": {
+        "role": "primary",
+        "displayName": "工作台绿",
+        "tonalRamp": [
+          "oklch(15% 0.103 161.4)",
+          "oklch(27% 0.103 161.4)",
+          "oklch(39% 0.103 161.4)",
+          "oklch(51% 0.103 161.4)",
+          "oklch(63% 0.103 161.4)",
+          "oklch(75% 0.103 161.4)",
+          "oklch(87% 0.103 161.4)",
+          "oklch(95% 0.103 161.4)"
+        ]
+      },
+      "brand-strong": {
+        "role": "primary",
+        "displayName": "深工作台绿",
+        "tonalRamp": [
+          "oklch(15% 0.091 159.8)",
+          "oklch(27% 0.091 159.8)",
+          "oklch(39% 0.091 159.8)",
+          "oklch(51% 0.091 159.8)",
+          "oklch(63% 0.091 159.8)",
+          "oklch(75% 0.091 159.8)",
+          "oklch(87% 0.091 159.8)",
+          "oklch(95% 0.091 159.8)"
+        ]
+      },
+      "mint": {
+        "role": "secondary",
+        "displayName": "标注薄荷",
+        "tonalRamp": [
+          "oklch(15% 0.038 164.8)",
+          "oklch(27% 0.038 164.8)",
+          "oklch(39% 0.038 164.8)",
+          "oklch(51% 0.038 164.8)",
+          "oklch(63% 0.038 164.8)",
+          "oklch(75% 0.038 164.8)",
+          "oklch(87% 0.038 164.8)",
+          "oklch(95% 0.038 164.8)"
+        ]
+      },
+      "mint-soft": {
+        "role": "secondary",
+        "displayName": "雾薄荷",
+        "tonalRamp": [
+          "oklch(15% 0.014 162.5)",
+          "oklch(27% 0.014 162.5)",
+          "oklch(39% 0.014 162.5)",
+          "oklch(51% 0.014 162.5)",
+          "oklch(63% 0.014 162.5)",
+          "oklch(75% 0.014 162.5)",
+          "oklch(87% 0.014 162.5)",
+          "oklch(95% 0.014 162.5)"
+        ]
+      },
+      "signal": {
+        "role": "tertiary",
+        "displayName": "预览黄",
+        "tonalRamp": [
+          "oklch(15% 0.148 80.9)",
+          "oklch(27% 0.148 80.9)",
+          "oklch(39% 0.148 80.9)",
+          "oklch(51% 0.148 80.9)",
+          "oklch(63% 0.148 80.9)",
+          "oklch(75% 0.148 80.9)",
+          "oklch(87% 0.148 80.9)",
+          "oklch(95% 0.148 80.9)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "首屏展示标题",
+        "purpose": "只用于首屏主标题，轻字重、紧字距，优先保持一条清晰基线。"
+      },
+      "headline": {
+        "displayName": "分区标题",
+        "purpose": "用于主要内容分区，在窄屏自然换行。"
+      },
+      "title": {
+        "displayName": "局部标题",
+        "purpose": "用于发布渠道等局部内容标题。"
+      },
+      "body": {
+        "displayName": "解释正文",
+        "purpose": "用于能力、边界与获取方式说明。"
+      },
+      "label": {
+        "displayName": "动作标签",
+        "purpose": "用于按钮、导航、图层名称和短标签。"
+      },
+      "code": {
+        "displayName": "命令",
+        "purpose": "只用于终端标识与可复制命令。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "evidence-float",
+        "value": "0 24px 70px rgb(22 43 33 / 0.12)",
+        "purpose": "只托起首要真实产品截图。"
+      },
+      {
+        "name": "action-rest",
+        "value": "0 8px 20px rgb(31 122 85 / 0.18)",
+        "purpose": "实心主按钮的静止状态。"
+      },
+      {
+        "name": "action-hover",
+        "value": "0 12px 24px rgb(31 122 85 / 0.22)",
+        "purpose": "实心主按钮悬停时与轻微上移共同确认交互。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "nav-line",
+        "value": "180ms ease",
+        "purpose": "导航文字颜色与下划线展开。"
+      },
+      {
+        "name": "control-state",
+        "value": "200ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "按钮颜色、位移、阴影和外链箭头。"
+      },
+      {
+        "name": "media-hover",
+        "value": "500ms cubic-bezier(0, 0, 0.2, 1)",
+        "purpose": "图库截图的 1.01 倍轻微放大。"
+      },
+      {
+        "name": "evidence-enter",
+        "value": "700ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "首屏证据从轻微下移和裁切状态进入。"
+      },
+      {
+        "name": "annotation-enter",
+        "value": "650ms 520ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "图层标注线在首屏证据后展开。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "首要行动使用的实心绿色按钮。",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">查看开发预览 <svg aria-hidden=\"true\" viewBox=\"0 0 20 20\"><path d=\"M10 3v13m-5-5 5 5 5-5\"/></svg></a>",
+      "css": ".ds-btn-primary { display:inline-flex; min-height:44px; align-items:center; gap:12px; padding:0 20px; border:0; border-radius:var(--radius-lg, 8px); background:var(--color-brand, #1f7a55); color:var(--color-white, #fff); font:600 14px/1.429 var(--font-sans, sans-serif); text-decoration:none; box-shadow:0 8px 20px rgb(31 122 85 / .18); transition:background-color 200ms, transform 200ms, box-shadow 200ms; } .ds-btn-primary svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.5; } .ds-btn-primary:hover { background:var(--color-brand-strong, #176342); transform:translateY(-2px); box-shadow:0 12px 24px rgb(31 122 85 / .22); } .ds-btn-primary:focus-visible { outline:2px solid var(--color-brand, #1f7a55); outline-offset:4px; } .ds-btn-primary:active { transform:translateY(0); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Releases 与 npm 等次级外部行动。",
+      "html": "<a class=\"ds-btn-outline\" href=\"#\">查看 Releases <svg aria-hidden=\"true\" viewBox=\"0 0 20 20\"><path d=\"M6 14 14 6M7 6h7v7\"/></svg></a>",
+      "css": ".ds-btn-outline { display:inline-flex; min-height:44px; align-items:center; gap:8px; padding:0 16px; border:1px solid var(--color-brand, #1f7a55); border-radius:var(--radius-lg, 8px); background:var(--color-white, #fff); color:var(--color-brand, #1f7a55); font:600 14px/1.429 var(--font-sans, sans-serif); text-decoration:none; transition:background-color 200ms, color 200ms; } .ds-btn-outline svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.5; transition:transform 200ms; } .ds-btn-outline:hover { background:var(--color-brand, #1f7a55); color:var(--color-white, #fff); } .ds-btn-outline:hover svg { transform:translate(2px, -2px); } .ds-btn-outline:focus-visible { outline:2px solid var(--color-brand, #1f7a55); outline-offset:4px; } .ds-btn-outline:active { background:var(--color-brand-strong, #176342); }"
+    },
+    {
+      "name": "Source Link",
+      "kind": "custom",
+      "refersTo": "source-link",
+      "description": "与首要按钮并列的克制文字行动。",
+      "html": "<a class=\"ds-source-link\" href=\"#\">阅读源码 <svg aria-hidden=\"true\" viewBox=\"0 0 20 20\"><path d=\"M6 14 14 6M7 6h7v7\"/></svg></a>",
+      "css": ".ds-source-link { display:inline-flex; min-height:44px; align-items:center; gap:8px; color:var(--color-ink, #18241e); font:600 14px/1.429 var(--font-sans, sans-serif); text-decoration-line:underline; text-decoration-color:var(--color-line, #d5dfd9); text-decoration-thickness:1px; text-underline-offset:4px; transition:color 200ms; } .ds-source-link svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.5; transition:transform 200ms; } .ds-source-link:hover { color:var(--color-brand, #1f7a55); } .ds-source-link:hover svg { transform:translate(2px, -2px); } .ds-source-link:focus-visible { outline:2px solid var(--color-brand, #1f7a55); outline-offset:4px; } .ds-source-link:active { color:var(--color-brand-strong, #176342); }"
+    },
+    {
+      "name": "Top Navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "品牌左锚点、解释性中间锚点与 GitHub 右行动。",
+      "html": "<nav class=\"ds-nav\" aria-label=\"主导航\"><a class=\"ds-brand\" href=\"#\"><svg aria-hidden=\"true\" viewBox=\"0 0 64 64\"><circle cx=\"32\" cy=\"32\" r=\"27\" fill=\"#fffdf7\" stroke=\"#183d2d\" stroke-opacity=\".28\"/><circle cx=\"22\" cy=\"27\" r=\"6\" fill=\"#2d7856\"/><circle cx=\"32\" cy=\"32\" r=\"7\" fill=\"#e2a323\"/><circle cx=\"43\" cy=\"38\" r=\"6\" fill=\"#2d7856\"/></svg><span>Codex Skin</span></a><div class=\"ds-nav-links\"><a href=\"#\">三个图层</a><a href=\"#\">实际效果</a><a href=\"#\">获取方式</a></div><a class=\"ds-nav-github\" href=\"#\">GitHub ↗</a></nav>",
+      "css": ".ds-nav { display:grid; min-height:72px; grid-template-columns:auto 1fr auto; align-items:center; gap:32px; padding:0 20px; border-bottom:1px solid var(--color-line, #d5dfd9); background:rgb(248 251 249 / .95); color:var(--color-ink, #18241e); font-family:var(--font-sans, sans-serif); } .ds-nav a { color:inherit; text-decoration:none; } .ds-brand { display:inline-flex; align-items:center; gap:12px; font-size:15px; font-weight:600; letter-spacing:-.02em; } .ds-brand svg { width:36px; height:36px; } .ds-nav-links { display:flex; justify-content:center; gap:32px; color:var(--color-muted, #536159); font-size:14px; } .ds-nav-links a { position:relative; transition:color 180ms ease; } .ds-nav-links a::after { position:absolute; right:0; bottom:-6px; left:0; height:1px; background:currentColor; content:\"\"; transform:scaleX(0); transform-origin:right; transition:transform 180ms ease; } .ds-nav-links a:hover { color:var(--color-brand, #1f7a55); } .ds-nav-links a:hover::after { transform:scaleX(1); transform-origin:left; } .ds-nav-github { font-size:14px; font-weight:500; } .ds-nav a:focus-visible { outline:2px solid var(--color-brand, #1f7a55); outline-offset:4px; } @media (max-width:767px) { .ds-nav-links { display:none; } }"
+    },
+    {
+      "name": "Layer Row",
+      "kind": "custom",
+      "refersTo": "linear-annotation",
+      "description": "以编号、说明和线性窗口示意解释单个可控图层。",
+      "html": "<article class=\"ds-layer-row\"><span class=\"ds-layer-index\">1</span><h3>全局壁纸</h3><p>控制整个内容区的底色、图片、透明度与柔化。</p><svg aria-hidden=\"true\" viewBox=\"0 0 240 96\"><rect x=\"8\" y=\"8\" width=\"224\" height=\"80\" rx=\"3\"/><path d=\"M8 20h224\"/><circle cx=\"16\" cy=\"14\" r=\"1.5\"/><circle cx=\"22\" cy=\"14\" r=\"1.5\"/><rect class=\"ds-layer-fill\" x=\"16\" y=\"28\" width=\"208\" height=\"52\"/></svg></article>",
+      "css": ".ds-layer-row { display:grid; grid-template-columns:32px 144px 1fr 240px; align-items:center; gap:24px; padding:16px 28px; border:1px solid var(--color-line, #d5dfd9); background:var(--color-white, #fff); color:var(--color-ink, #18241e); font-family:var(--font-sans, sans-serif); } .ds-layer-index { display:grid; width:24px; height:24px; place-items:center; border-radius:9999px; background:var(--color-brand, #1f7a55); color:var(--color-white, #fff); font-size:12px; font-weight:600; } .ds-layer-row h3 { margin:0; font-size:16px; font-weight:600; letter-spacing:-.02em; } .ds-layer-row p { margin:0; color:var(--color-muted, #536159); font-size:14px; line-height:24px; } .ds-layer-row svg { width:100%; max-width:240px; height:96px; fill:var(--color-white, #fff); stroke:var(--color-line, #d5dfd9); stroke-width:1; } .ds-layer-row svg circle:first-of-type { fill:var(--color-brand, #1f7a55); stroke:none; } .ds-layer-row svg circle:last-of-type { fill:var(--color-signal, #f4b83f); stroke:none; } .ds-layer-row .ds-layer-fill { fill:var(--color-mint-soft, #edf8f2); stroke:rgb(31 122 85 / .4); } .ds-layer-row:focus-within { outline:2px solid var(--color-brand, #1f7a55); outline-offset:4px; } @media (max-width:700px) { .ds-layer-row { grid-template-columns:32px 1fr; padding:20px; } .ds-layer-row p, .ds-layer-row svg { grid-column:1 / -1; } }"
+    },
+    {
+      "name": "Evidence Frame",
+      "kind": "card",
+      "refersTo": "proof-frame",
+      "description": "用直角细线和极少留白承托真实产品截图。",
+      "html": "<figure class=\"ds-evidence\"><svg class=\"ds-evidence-media\" aria-label=\"真实 Codex 截图占位示意\" viewBox=\"0 0 600 360\"><rect width=\"600\" height=\"360\"/><path d=\"M0 28h600M112 28v332\"/><circle cx=\"14\" cy=\"14\" r=\"3\"/><circle cx=\"26\" cy=\"14\" r=\"3\"/><circle cx=\"38\" cy=\"14\" r=\"3\"/><rect x=\"148\" y=\"76\" width=\"408\" height=\"232\"/><path d=\"M176 104h96M176 124h64M176 270h228\"/></svg><figcaption><strong>实际界面</strong><span>真实产品截图优先</span></figcaption></figure>",
+      "css": ".ds-evidence { margin:0; padding:6px; border:1px solid var(--color-line, #d5dfd9); background:var(--color-white, #fff); color:var(--color-ink, #18241e); font-family:var(--font-sans, sans-serif); box-shadow:0 24px 70px rgb(22 43 33 / .12); } .ds-evidence-media { display:block; width:100%; aspect-ratio:5 / 3; background:var(--color-canvas, #f8fbf9); fill:var(--color-mint-soft, #edf8f2); stroke:var(--color-line, #d5dfd9); stroke-width:1; } .ds-evidence-media circle:first-of-type { fill:#ff5f57; stroke:none; } .ds-evidence-media circle:nth-of-type(2) { fill:var(--color-signal, #f4b83f); stroke:none; } .ds-evidence-media circle:nth-of-type(3) { fill:var(--color-brand, #1f7a55); stroke:none; } .ds-evidence figcaption { display:flex; justify-content:space-between; gap:24px; padding:16px 10px 10px; border-top:1px solid var(--color-line, #d5dfd9); font-size:12px; line-height:20px; } .ds-evidence figcaption span { color:var(--color-muted, #536159); } .ds-evidence:hover .ds-evidence-media { transform:scale(1.01); transform-origin:center; transition:transform 500ms cubic-bezier(0, 0, .2, 1); } .ds-evidence:focus-within { outline:2px solid var(--color-brand, #1f7a55); outline-offset:4px; }"
+    },
+    {
+      "name": "Release Panel",
+      "kind": "card",
+      "refersTo": "release-panel",
+      "description": "用直角边界区分客户端与 CLI 发布通道。",
+      "html": "<article class=\"ds-release-panel\"><div class=\"ds-release-meta\"><span class=\"ds-terminal\">&gt;_</span><span>按 Core / CLI 变化独立发布</span></div><h3>npm CLI</h3><p>面向开发与支持场景。仅桌面界面变化时，不需要跟随客户端同步发布 npm 版本。</p><a href=\"#\">查看 npm 包 ↗</a></article>",
+      "css": ".ds-release-panel { max-width:560px; padding:36px; border:1px solid var(--color-line, #d5dfd9); border-radius:0; background:var(--color-white, #fff); color:var(--color-ink, #18241e); font-family:var(--font-sans, sans-serif); } .ds-release-meta { display:flex; align-items:center; justify-content:space-between; gap:24px; color:var(--color-muted, #536159); font-size:14px; } .ds-terminal { display:grid; width:48px; height:48px; place-items:center; border:1px solid var(--color-line, #d5dfd9); border-radius:8px; background:var(--color-canvas, #f8fbf9); color:var(--color-ink, #18241e); font:400 18px/1 var(--font-mono, monospace); } .ds-release-panel h3 { margin:32px 0 0; font-size:24px; line-height:32px; font-weight:500; letter-spacing:-.025em; } .ds-release-panel p { max-width:480px; margin:16px 0 0; color:var(--color-muted, #536159); font-size:14px; line-height:24px; } .ds-release-panel a { display:inline-flex; min-height:44px; align-items:center; margin-top:32px; padding:0 16px; border:1px solid var(--color-brand, #1f7a55); border-radius:8px; color:var(--color-brand, #1f7a55); font-size:14px; font-weight:600; text-decoration:none; transition:background-color 200ms, color 200ms; } .ds-release-panel a:hover { background:var(--color-brand, #1f7a55); color:var(--color-white, #fff); } .ds-release-panel a:focus-visible { outline:2px solid var(--color-brand, #1f7a55); outline-offset:4px; } .ds-release-panel a:active { background:var(--color-brand-strong, #176342); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "明亮工作台",
+    "overview": "Codex Skin 把界面当成一张冷静、开放的技术工作台：真实产品效果占据视觉中心，细线、留白和线性标注负责解释，而不是用装饰性海报或功能卡片替代证据。整体保持浅色、明亮、克制，让个性化图片可以变化，信息结构仍然稳定。\n\n这个系统用冷白和浅薄荷建立低对比层次，用石墨色文字与单像素边界保持精度。品牌绿只在动作、编号和关键连接处出现；圆角和阴影受严格限制，避免页面滑向暖纸张、编辑杂志、复古贴纸或高装饰密度。",
+    "keyCharacteristics": [
+      "真实产品截图先于装饰和抽象功能图。",
+      "冷白画布、浅薄荷分区与石墨细线共同组织层级。",
+      "系统无衬线承担全部信息层级，等宽字体只标记命令。",
+      "开放分区和横向工作台编排优先于等尺寸圆角卡片。",
+      "品牌绿稀少而明确，黄色只表达预览或状态信号。"
+    ],
+    "rules": [
+      {
+        "name": "The Green Is a Signal Rule",
+        "body": "品牌绿只标记动作、索引和结构连接；不要把整屏内容涂成绿色。",
+        "section": "colors"
+      },
+      {
+        "name": "The Cool Canvas Rule",
+        "body": "大面积底色只在冷白、纯白和浅薄荷之间切换；不要引入暖纸张色。",
+        "section": "colors"
+      },
+      {
+        "name": "The Single Voice Rule",
+        "body": "不引入展示性衬线或装饰字体；层级只通过系统字体的尺寸、字重、行高和字距建立。",
+        "section": "typography"
+      },
+      {
+        "name": "The Open Section Rule",
+        "body": "用留白、整段浅色带和单像素分隔线组织内容；不要把每个概念都包进同尺寸卡片。",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-by-Default Rule",
+        "body": "内容面板、图层表和分区在静止状态保持平面；阴影只服务于首要证据和主动作。",
+        "section": "elevation"
+      },
+      {
+        "name": "The Frame, Not Card Rule",
+        "body": "优先使用直角细线框架表达结构；不要给每个内容单元添加圆角、阴影和独立底色。",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do 在需要证明产品能力的页面优先使用真实产品截图，并给截图足够大的连续面积。",
+      "Do 使用冷白、纯白和浅薄荷整段分区，再用 1px 冷灰绿线建立结构。",
+      "Do 把品牌绿集中在动作、编号和线性标注上，让其稀缺性保持清晰。",
+      "Do 保留清晰的键盘焦点，并尊重 `prefers-reduced-motion`。",
+      "Do 让移动端沿同一叙事顺序自然堆叠，不裁掉关键文案或行动。"
+    ],
+    "donts": [
+      "Don't 使用暖纸张、编辑杂志、复古贴纸或高装饰密度的视觉语言。",
+      "Don't 用装饰性海报、虚构指标或通用功能卡片替代真实产品证据。",
+      "Don't 把开放分区改造成一组等尺寸、重圆角、带阴影的卡片。",
+      "Don't 扩大黄色状态色的面积，或让品牌绿成为大面积内容底色。",
+      "Don't 让背景图片、人物或动效损害 Codex 原有信息层级和可读性。"
+    ]
+  }
+}

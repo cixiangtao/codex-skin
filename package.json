@@ -17,7 +17,7 @@
     "theme",
     "wallpaper"
   ],
-  "homepage": "https://github.com/cixiangtao/codex-skin#readme",
+  "homepage": "https://cixiangtao.github.io/codex-skin/",
   "bugs": {
     "url": "https://github.com/cixiangtao/codex-skin/issues"
   },
@@ -54,6 +54,9 @@
     "lint:fix": "oxlint . --fix",
     "release": "release-it",
     "release:check": "bun run check && bun run test && npm pack --dry-run",
+    "site": "vite --config vite.site.config.ts",
+    "site:build": "vite build --config vite.site.config.ts",
+    "site:preview": "vite preview --config vite.site.config.ts",
     "test": "vitest run",
     "type-check": "tsc --noEmit",
     "prepack": "bun run build && bun run verify:package",

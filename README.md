@@ -1,4 +1,19 @@
-[查看完整 README →](https://github.com/cixiangtao/codex-skin#readme)
+# Codex Skin
+
+[访问项目主页 →](https://cixiangtao.github.io/codex-skin/) ·
+[查看完整 README →](https://github.com/cixiangtao/codex-skin/blob/main/.github/README.md)
+
+> [!IMPORTANT]
+> 此 npm 包只提供面向自动化、开发调试和故障恢复的 Codex Skin CLI，不包含可直接安装的
+> Electron 客户端。普通用户的正式分发物是 GitHub Releases 中的 macOS 客户端；客户端完成
+> 签名与公证前仍属于开发预览。
+
+## 发布渠道
+
+- **项目主页**通过 GitHub Pages 发布，集中展示产品能力、主题效果和正式下载入口。
+- **macOS 客户端**是面向普通用户的主产品，正式版本通过 GitHub Releases 提供 DMG 和 ZIP。
+- **npm CLI**是独立的开发与支持渠道，只在 Core、CLI、共享运行时或排障恢复能力变化时按需发布。
+- 仅涉及 Electron 界面、图标或桌面打包的变化，不需要同步发布 npm 新版本。
 
 ## Electron 客户端（开发预览）
 
@@ -35,7 +50,8 @@ bun run desktop:pack
 bun run desktop:dist
 ```
 
-当前构建尚未接入 Apple Developer 签名与公证，直接分发前需要配置签名身份和公证凭据。
+该命令只在本地生成安装包，不会创建 GitHub Release。当前构建尚未接入 Apple Developer
+签名与公证，直接分发前需要配置签名身份和公证凭据。
 
 ## Codex 主题换装效果
 
