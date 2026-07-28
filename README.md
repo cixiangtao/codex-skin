@@ -14,8 +14,8 @@ bun run desktop
 ```
 
 该命令通过 electron-vite 启动桌面开发环境。界面代码支持热更新，Electron 主进程代码变化后
-会自动重新构建并重启。`bun run desktop:dev` 是同一开发命令的显式名称。开发模式直接使用
-Electron 宿主，因此 macOS 可能仍将宿主识别为 Electron。
+会自动重新构建并重启。开发模式直接使用 Electron 宿主，因此 macOS 可能仍将宿主识别为
+Electron。
 
 生成并打开名称、图标与正式客户端一致的 `Codex Skin.app`：
 

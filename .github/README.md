@@ -190,9 +190,9 @@ bun run desktop  # 启动支持热更新的 Electron 开发环境
 bun run desktop:open # 生成并打开带正式名称和图标的 Codex Skin.app
 ```
 
-`bun run desktop` 与 `bun run desktop:dev` 等价。electron-vite 会同时启动 Electron 主进程、
-设置接口与支持热更新的界面；macOS 可能把开发宿主显示为 Electron。需要验证真实应用名称、
-Dock 图标或应用包元数据时，应使用 `bun run desktop:open`。
+`bun run desktop` 会通过 electron-vite 同时启动 Electron 主进程、设置接口与支持热更新的界面；
+macOS 可能把开发宿主显示为 Electron。需要验证真实应用名称、Dock 图标或应用包元数据时，
+应使用 `bun run desktop:open`。
 
 项目使用 Bun 和 TypeScript 开发。electron-vite 统一构建 Electron 主进程与设置界面，界面基于
 React、Tailwind CSS 4 和 Vite；Oxfmt、Oxlint、TypeScript 与 Vitest 分别负责格式化、代码检查、
