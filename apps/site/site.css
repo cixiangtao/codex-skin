@@ -91,8 +91,8 @@
     transform-origin: left;
   }
 
-  .hero-stage {
-    animation: hero-stage-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  .install-stage {
+    animation: install-stage-in 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .annotation::before {
@@ -103,27 +103,21 @@
     height: 1px;
     background: var(--color-brand);
     content: "";
-    animation: annotation-line-in 650ms 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    width: 2rem;
   }
 }
 
-@keyframes hero-stage-in {
+@keyframes install-stage-in {
   from {
-    clip-path: inset(0 0 8% 0);
-    opacity: 0.55;
-    transform: translateY(18px);
+    clip-path: inset(0 0 10% 0);
+    opacity: 0.6;
+    transform: translateY(14px);
   }
 
   to {
     clip-path: inset(0);
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes annotation-line-in {
-  to {
-    width: 2rem;
   }
 }
 
