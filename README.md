@@ -1,17 +1,19 @@
 # Codex Skin
 
+[下载 macOS 预览版（Apple Silicon）→](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.dmg) ·
 [访问项目主页 →](https://cixiangtao.github.io/codex-skin/) ·
 [查看完整 README →](https://github.com/cixiangtao/codex-skin/blob/main/.github/README.md)
 
 > [!IMPORTANT]
 > 此 npm 包只提供面向自动化、开发调试和故障恢复的 Codex Skin CLI，不包含可直接安装的
-> Electron 客户端。普通用户的正式分发物是 GitHub Releases 中的 macOS 客户端；客户端完成
-> 签名与公证前仍属于开发预览。
+> Electron 客户端。普通用户请下载 GitHub Releases 中的 macOS 客户端；当前预览版仅支持
+> Apple Silicon，尚未使用 Apple Developer ID 签名，也未经过 Apple 公证。
 
 ## 发布渠道
 
-- **项目主页**通过 GitHub Pages 发布，集中展示产品能力、主题效果和正式下载入口。
-- **macOS 客户端**是面向普通用户的主产品，正式版本通过 GitHub Releases 提供 DMG 和 ZIP。
+- **项目主页**通过 GitHub Pages 发布，集中展示产品能力、主题效果和客户端下载入口。
+- **macOS 客户端**是面向普通用户的主产品，当前通过 GitHub Releases 提供开发预览 DMG 和
+  ZIP。
 - **npm CLI**是独立的开发与支持渠道，只在 Core、CLI、共享运行时或排障恢复能力变化时按需发布。
 - 仅涉及 Electron 界面、图标或桌面打包的变化，不需要同步发布 npm 新版本。
 
@@ -23,6 +25,19 @@
 
 客户端是唯一面向普通用户的产品入口。CLI 仅保留用于自动化测试、开发调试、无界面排障和
 客户端故障时的兜底恢复，不承载独立业务逻辑。
+
+直接下载：
+
+- [DMG（推荐）](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.dmg)
+- [ZIP（备用）](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.zip)
+- [SHA-256 校验值](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/SHA256SUMS.txt)
+
+如果 macOS 阻止打开，请先确认下载来源与 SHA-256 校验值；尝试打开一次后，前往“系统设置 →
+隐私与安全性”选择“仍要打开”。Apple
+[说明了这一安全确认流程](https://support.apple.com/zh-cn/102445)；不信任来源时不要绕过系统
+保护。
+
+以下命令仅用于本地开发，不是普通用户的安装步骤：
 
 ```bash
 bun run desktop
@@ -50,8 +65,14 @@ bun run desktop:pack
 bun run desktop:dist
 ```
 
-该命令只在本地生成安装包，不会创建 GitHub Release。当前构建尚未接入 Apple Developer
-签名与公证，直接分发前需要配置签名身份和公证凭据。
+生成与 GitHub Release 一致的 Apple Silicon 预览包：
+
+```bash
+bun run desktop:dist:preview
+```
+
+推送格式为 `desktop-v<版本>-preview.<序号>` 的标签后，GitHub Actions 会执行检查、生成
+DMG 与 ZIP、验证产物并创建 prerelease。当前构建尚未接入 Apple Developer ID 签名与公证。
 
 ## Codex 主题换装效果
 

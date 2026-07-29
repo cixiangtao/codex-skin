@@ -46,6 +46,7 @@
     "desktop": "bun scripts/desktop-dev.ts",
     "desktop:build": "electron-vite build --ignoreConfigWarning",
     "desktop:dist": "bun run desktop:build && electron-builder --config electron-builder.yml",
+    "desktop:dist:preview": "bun run desktop:build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.yml --mac dmg zip --arm64 --publish never",
     "desktop:open": "bun run desktop:pack && open \"release/mac-arm64/Codex Skin.app\"",
     "desktop:pack": "bun run desktop:build && electron-builder --config electron-builder.yml --dir",
     "format": "oxfmt --write .",

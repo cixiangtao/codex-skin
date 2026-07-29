@@ -1,0 +1,126 @@
+name: Release macOS desktop preview
+
+on:
+  push:
+    tags:
+      - "desktop-v*-preview.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    env:
+      RELEASE_NOTES: |
+        ## Codex Skin macOS 开发预览
+
+        这是面向 Apple Silicon Mac 的桌面客户端预览版。应用内置运行环境，普通用户无需安装 Node.js 或 Bun。
+
+        ### 安装
+
+        1. 下载并打开 DMG 资产。
+        2. 将 `Codex Skin.app` 拖入“应用程序”文件夹后打开。
+        3. 如果 macOS 阻止打开，请先确认下载来源与 SHA-256 校验值；尝试打开一次后，前往“系统设置 → 隐私与安全性”，选择“仍要打开”。
+
+        ### 当前限制
+
+        - 仅支持 Apple Silicon。
+        - 尚未使用 Apple Developer ID 签名，也未经过 Apple 公证。
+        - 此版本是开发预览，不应视为完成正式分发条件的稳定版本。
+
+        ZIP 是 DMG 无法使用时的备用下载。问题反馈与源码：[GitHub 仓库](https://github.com/cixiangtao/codex-skin)。
+
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify preview tag
+        shell: bash
+        run: |
+          version="$(bun -p "require('./package.json').version")"
+          case "$GITHUB_REF_NAME" in
+            "desktop-v${version}-preview."*) ;;
+            *)
+              echo "::error::Tag $GITHUB_REF_NAME does not match package version $version"
+              exit 1
+              ;;
+          esac
+
+      - name: Check source
+        run: |
+          bun run check
+          bun run test
+
+      - name: Build Apple Silicon preview
+        run: bun run desktop:dist:preview
+
+      - name: Verify release artifacts
+        shell: bash
+        run: |
+          version="$(bun -p "require('./package.json').version")"
+          dmg="release/Codex-Skin-${version}-arm64.dmg"
+          zip="release/Codex-Skin-${version}-arm64.zip"
+
+          test -s "$dmg"
+          test -s "$zip"
+          hdiutil verify "$dmg"
+          unzip -tq "$zip"
+
+          preview_dir="$(mktemp -d)"
+          unzip -q "$zip" -d "$preview_dir"
+          app="$preview_dir/Codex Skin.app"
+          binary="$app/Contents/MacOS/Codex Skin"
+
+          test -d "$app"
+          test -x "$binary"
+
+          archs="$(lipo -archs "$binary")"
+          case " $archs " in
+            *" arm64 "*) ;;
+            *)
+              echo "::error::Expected arm64 application binary, found: $archs"
+              exit 1
+              ;;
+          esac
+
+          bundle_id="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$app/Contents/Info.plist")"
+          test "$bundle_id" = "com.anys.codex-skin"
+
+          if codesign -dv --verbose=4 "$app" 2>&1 | grep -q "Authority=Developer ID Application"; then
+            echo "::error::Preview unexpectedly contains a Developer ID signature"
+            exit 1
+          fi
+
+          (
+            cd release
+            shasum -a 256 \
+              "Codex-Skin-${version}-arm64.dmg" \
+              "Codex-Skin-${version}-arm64.zip" \
+              > SHA256SUMS.txt
+          )
+
+      - name: Publish GitHub prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          version="$(bun -p "require('./package.json').version")"
+          preview_number="${GITHUB_REF_NAME##*.}"
+          gh release create "$GITHUB_REF_NAME" \
+            "release/Codex-Skin-${version}-arm64.dmg#Codex Skin ${version} for Apple Silicon (DMG)" \
+            "release/Codex-Skin-${version}-arm64.zip#Codex Skin ${version} for Apple Silicon (ZIP)" \
+            "release/SHA256SUMS.txt#SHA-256 checksums" \
+            --verify-tag \
+            --prerelease \
+            --latest=false \
+            --title "Codex Skin ${version} · macOS preview ${preview_number}" \
+            --notes "$RELEASE_NOTES"

@@ -3,7 +3,8 @@
 Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面美化工具。无需修改或重新签名 `ChatGPT.app`，即可通过可视化设置为 Codex 添加全局壁纸、主面板人物布景和侧边栏装饰，自由打造浅色、深色、二次元等个性化 Codex 主题。
 
 [访问项目主页](https://cixiangtao.github.io/codex-skin/) ·
-[查看 Releases](https://github.com/cixiangtao/codex-skin/releases) ·
+[下载 Apple Silicon 预览版](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.dmg) ·
+[查看 Releases](https://github.com/cixiangtao/codex-skin/releases/tag/desktop-v1.1.2-preview.1) ·
 [查看 npm CLI](https://www.npmjs.com/package/codex-skin)
 
 > [!IMPORTANT]
@@ -33,9 +34,9 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 
 ## 发布渠道
 
-- **项目主页**通过 GitHub Pages 发布，集中展示产品能力、主题效果和正式下载入口。
-- **macOS 客户端**是面向普通用户的主发布渠道，正式版本通过 GitHub Releases 提供 DMG 和
-  ZIP。
+- **项目主页**通过 GitHub Pages 发布，集中展示产品能力、主题效果和客户端下载入口。
+- **macOS 客户端**是面向普通用户的主发布渠道，当前通过 GitHub Releases 提供 Apple
+  Silicon 开发预览 DMG 和 ZIP。
 - **npm CLI**是独立的开发与支持渠道，只在 Core、CLI、共享运行时、诊断或恢复能力发生变化时
   按需发布。
 - 仅涉及 Electron 界面、图标或桌面打包的变化，只发布客户端即可，不需要同步发布 npm 新版本。
@@ -69,14 +70,21 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 
 ## 快速开始
 
-正式分发后，普通用户可以从[项目主页](https://cixiangtao.github.io/codex-skin/)进入 Releases
-下载并安装 `Codex Skin.app`。当前开发预览可以在源码目录生成本机应用：
+普通用户直接下载已打包的 Apple Silicon 客户端，不需要安装 Node.js、Bun 或项目依赖：
 
-```bash
-bun install
-bun run desktop:pack
-open "release/mac-arm64/Codex Skin.app"
-```
+1. 下载 [Codex-Skin-1.1.2-arm64.dmg](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.dmg)。
+2. 打开 DMG，将 `Codex Skin.app` 拖入“应用程序”文件夹。
+3. 打开 Codex Skin，在设置页选择图片并开启需要的背景层。
+
+也可以下载[备用 ZIP](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.zip)，并使用
+[SHA-256 校验文件](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/SHA256SUMS.txt)
+核对产物。
+
+> [!WARNING]
+> 当前客户端未使用 Apple Developer ID 签名，也未经过 Apple 公证。如果 macOS 阻止打开，请先
+> 确认下载来源与 SHA-256 校验值；尝试打开一次后，前往“系统设置 → 隐私与安全性”选择“仍要
+> 打开”。Apple [说明了这一安全确认流程](https://support.apple.com/zh-cn/102445)；不信任来源
+> 时不要绕过系统保护。
 
 客户端会打开内置设置页，以仅回环可访问的 Chrome DevTools Protocol（CDP）端口启动 Codex，
 自动应用当前配置，并在关闭设置窗口后继续维护所有新窗口。只有从应用菜单退出客户端时，后台
@@ -238,15 +246,22 @@ public/backgrounds/sidebar/    # 侧边栏人物或布景
 
 ### 桌面客户端
 
-生成本机 DMG 和 ZIP：
+生成与 GitHub Release 一致的 Apple Silicon 预览包：
+
+```bash
+bun run desktop:dist:preview
+```
+
+产物输出到 `release/`。推送格式为 `desktop-v<版本>-preview.<序号>` 的标签后，GitHub
+Actions 会重新执行代码检查与测试，构建并验证 DMG、ZIP 和 SHA-256 校验文件，然后创建 GitHub
+prerelease。客户端尚未接入 Apple Developer ID 签名、公证和 Intel Mac 构建，因此当前产物仍是
+开发预览。
+
+普通本机打包仍可使用：
 
 ```bash
 bun run desktop:dist
 ```
-
-产物输出到 `release/`。该命令目前只完成本地构建，不会创建或上传 GitHub Release。客户端尚未
-接入 Apple Developer 签名、公证和 Intel Mac 构建，因此当前产物只能作为开发预览；完成这些
-发布条件后，再通过 GitHub Releases 面向普通用户分发。
 
 仅涉及 Electron 界面、应用图标或桌面打包的变化，不需要发布 npm CLI。
 

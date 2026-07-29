@@ -23,4 +23,4 @@ mac:
   target:
     - dmg
     - zip
-artifactName: ${productName}-${version}-${arch}.${ext}
+artifactName: Codex-Skin-${version}-${arch}.${ext}
