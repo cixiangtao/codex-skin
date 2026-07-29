@@ -69,8 +69,8 @@ function Header() {
       <div className="mx-auto flex h-18 w-[min(calc(100%_-_2rem),80rem)] items-center justify-between">
         <Brand />
         <nav className="text-muted hidden items-center gap-8 text-sm md:flex" aria-label="主导航">
-          <a className="nav-link" href="#layers">
-            三个图层
+          <a className="nav-link" href="#install">
+            安装使用
           </a>
           <a className="nav-link" href="#preview">
             实际效果
@@ -105,9 +105,9 @@ function Hero() {
         <div className="flex flex-wrap items-center gap-x-6 gap-y-4 lg:col-span-4 lg:justify-self-end">
           <a
             className="bg-brand hover:bg-brand-strong focus-visible:outline-brand inline-flex min-h-11 items-center gap-3 rounded-lg px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgb(31_122_85_/_0.18)] transition-[background-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgb(31_122_85_/_0.22)] focus-visible:outline-2 focus-visible:outline-offset-4"
-            href="#preview"
+            href="#install"
           >
-            查看开发预览
+            安装开发预览
             <ArrowDown />
           </a>
           <a
@@ -164,6 +164,104 @@ function Hero() {
           <span className="bg-signal size-2 rounded-full" aria-hidden="true"></span>
           Apple Silicon · 开发预览
         </p>
+      </div>
+    </section>
+  )
+}
+
+const installSteps = [
+  {
+    title: "获取并打开客户端",
+    description: "克隆源码、安装依赖，然后生成并打开本机 Codex Skin.app。",
+  },
+  {
+    title: "选择图片与图层",
+    description: "在设置页为全局壁纸、主面板和侧边栏选择图片，并开启需要的图层。",
+  },
+  {
+    title: "继续正常使用 Codex",
+    description: "设置会同步到当前与新窗口；关闭设置页仍会保持主题，从应用菜单退出后才停止。",
+  },
+]
+
+function InstallUse() {
+  return (
+    <section id="install" className="border-line bg-mint-soft border-y">
+      <div className="mx-auto w-[min(calc(100%_-_2rem),80rem)] py-16 sm:py-20 lg:py-24">
+        <div className="grid gap-7 lg:grid-cols-12 lg:items-end">
+          <div className="lg:col-span-7">
+            <p className="text-brand text-sm font-semibold">先从这里开始</p>
+            <h2 className="mt-3 max-w-[13ch] text-[clamp(2rem,3.2vw,3rem)] leading-tight font-medium tracking-[-0.03em] text-ink">
+              安装与使用
+            </h2>
+            <p className="text-muted mt-5 max-w-[42rem] text-base leading-7">
+              当前提供 Apple Silicon 开发预览。先从源码生成本机应用，再通过可视化设置页布置你的
+              Codex 工作空间。
+            </p>
+          </div>
+          <dl className="border-line divide-line divide-y border-y py-2 text-sm lg:col-span-5">
+            <div className="flex items-start justify-between gap-6 py-2">
+              <dt className="text-muted">运行环境</dt>
+              <dd className="text-right font-medium text-ink">macOS · Apple Silicon</dd>
+            </div>
+            <div className="flex items-start justify-between gap-6 py-2">
+              <dt className="text-muted">构建依赖</dt>
+              <dd className="text-right font-medium text-ink">Node.js 22+ · Bun 1.3.14</dd>
+            </div>
+            <div className="flex items-start justify-between gap-6 py-2">
+              <dt className="text-muted">当前状态</dt>
+              <dd className="text-right font-medium text-ink">未签名、未公证的开发版本</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="border-line mt-10 grid border bg-white lg:grid-cols-12">
+          <div className="border-line min-w-0 p-5 sm:p-7 lg:col-span-7 lg:border-r lg:p-9">
+            <div className="flex items-center justify-between gap-6">
+              <p className="text-sm font-semibold text-ink">从源码安装</p>
+              <span className="text-muted font-mono text-xs">Terminal</span>
+            </div>
+            <pre className="border-line mt-5 max-w-full overflow-x-auto border bg-canvas p-5 text-[0.8125rem] leading-7 text-ink sm:p-6 sm:text-sm">
+              <code>
+                {
+                  "git clone https://github.com/cixiangtao/codex-skin.git\ncd codex-skin\nbun install\nbun run desktop:open"
+                }
+              </code>
+            </pre>
+            <p className="text-muted mt-5 text-sm leading-6">
+              命令会构建并打开带正式名称与图标的本机应用，不会安装正式 Release。
+            </p>
+          </div>
+
+          <ol className="divide-line divide-y lg:col-span-5">
+            {installSteps.map((step, index) => (
+              <li className="grid grid-cols-[2rem_1fr] gap-4 p-5 sm:p-7" key={step.title}>
+                <span className="border-brand text-brand grid size-7 place-items-center rounded-full border text-xs font-semibold">
+                  {index + 1}
+                </span>
+                <div>
+                  <h3 className="font-semibold text-ink">{step.title}</h3>
+                  <p className="text-muted mt-2 text-sm leading-6">{step.description}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-muted text-sm leading-6">
+            尚未提供 Intel 构建；正式签名、公证与 Release 流程仍在补齐。
+          </p>
+          <a
+            className="group text-brand decoration-brand/30 inline-flex min-h-11 shrink-0 items-center gap-2 text-sm font-semibold underline underline-offset-4"
+            href={`${githubUrl}/blob/main/.github/README.md#快速开始`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            阅读完整安装说明
+            <ArrowUpRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </a>
+        </div>
       </div>
     </section>
   )
@@ -468,40 +566,6 @@ function ReleaseChannels() {
   )
 }
 
-function Start() {
-  return (
-    <section className="mx-auto w-[min(calc(100%_-_2rem),80rem)] py-20 lg:py-28">
-      <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
-        <div className="lg:col-span-7">
-          <h2 className="max-w-[14ch] text-[clamp(2rem,3.2vw,3rem)] leading-tight font-medium tracking-[-0.03em] text-ink">
-            现在可以从源码体验
-          </h2>
-          <p className="text-muted mt-6 max-w-[40rem] text-base leading-7">
-            需要已安装 Codex 桌面端、Node.js 22+ 与 Bun 1.3.14。构建的是尚未签名、公证的 Apple
-            Silicon 开发版本。
-          </p>
-        </div>
-        <div className="lg:col-span-5 lg:justify-self-end">
-          <div className="border-line border-y py-5">
-            <code className="block overflow-x-auto text-sm whitespace-nowrap text-ink">
-              bun install &amp;&amp; bun run desktop:open
-            </code>
-          </div>
-          <a
-            className="group text-brand decoration-brand/30 mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold underline underline-offset-4"
-            href={`${githubUrl}/blob/main/.github/README.md#快速开始`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            阅读完整说明
-            <ArrowUpRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </a>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function Footer() {
   return (
     <footer className="border-line border-t bg-white">
@@ -535,13 +599,13 @@ function App() {
       <Header />
       <main>
         <Hero />
-        <div className="h-20 sm:h-28" aria-hidden="true"></div>
+        <div className="h-16 sm:h-20" aria-hidden="true"></div>
+        <InstallUse />
         <Layers />
         <SettingsProof />
         <Gallery />
         <Boundaries />
         <ReleaseChannels />
-        <Start />
       </main>
       <Footer />
     </div>
