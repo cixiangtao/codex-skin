@@ -13,6 +13,12 @@ import "./site.css"
 const githubUrl = "https://github.com/cixiangtao/codex-skin"
 const releasesUrl = `${githubUrl}/releases`
 const npmUrl = "https://www.npmjs.com/package/codex-skin"
+const desktopPreviewVersion = "1.1.2"
+const desktopPreviewTag = `desktop-v${desktopPreviewVersion}-preview.1`
+const desktopReleaseUrl = `${releasesUrl}/tag/${desktopPreviewTag}`
+const desktopDmgUrl = `${releasesUrl}/download/${desktopPreviewTag}/Codex-Skin-${desktopPreviewVersion}-arm64.dmg`
+const desktopZipUrl = `${releasesUrl}/download/${desktopPreviewTag}/Codex-Skin-${desktopPreviewVersion}-arm64.zip`
+const desktopChecksumsUrl = `${releasesUrl}/download/${desktopPreviewTag}/SHA256SUMS.txt`
 const installCommand =
   "git clone \\\nhttps://github.com/cixiangtao/codex-skin.git\ncd codex-skin\nbun install\nbun run desktop:open"
 
@@ -31,6 +37,21 @@ function ArrowUpRight({ className = "size-4" }: { className?: string }) {
   )
 }
 
+function ArrowDown({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 20 20"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path d="M10 3v10m-4-4 4 4 4-4M4 17h12" />
+    </svg>
+  )
+}
+
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <a
@@ -45,7 +66,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
         width={compact ? 32 : 36}
         height={compact ? 32 : 36}
       />
-      <span className={compact ? "text-sm" : "text-[0.95rem]"}>Codex Skin</span>
+      <span className={compact ? "text-sm" : "text-base"}>Codex Skin</span>
     </a>
   )
 }
@@ -82,12 +103,12 @@ function Header() {
 
 const installSteps = [
   {
-    title: "生成并打开应用",
-    description: "运行安装命令，构建并打开本机 Codex Skin.app。",
+    title: "下载并安装",
+    description: "打开 DMG，将 Codex Skin 拖入“应用程序”文件夹。",
   },
   {
-    title: "选择图片与图层",
-    description: "在设置页开启全局壁纸、主面板或侧边栏，并调整位置与透明度。",
+    title: "打开并设置主题",
+    description: "选择图片，开启全局壁纸、主面板或侧边栏，再调整位置与透明度。",
   },
   {
     title: "回到 Codex 工作",
@@ -128,41 +149,70 @@ function InstallHero() {
       <div className="mx-auto flex min-h-[calc(100svh-4.5rem)] w-[min(calc(100%_-_2rem),80rem)] flex-col py-8 sm:py-14 lg:justify-center lg:py-16">
         <div className="grid gap-5 lg:grid-cols-12 lg:items-end lg:gap-6">
           <h1 className="max-w-[11ch] text-[clamp(2.75rem,5vw,4.5rem)] leading-[1.04] font-normal tracking-[-0.03em] text-balance text-ink lg:col-span-7">
-            安装 Codex Skin
+            下载并开始使用
           </h1>
           <div className="lg:col-span-5">
             <p className="text-muted max-w-[38rem] text-sm leading-6 sm:text-base sm:leading-7">
-              当前为 Apple Silicon 开发预览。从源码生成本机应用，再通过可视化设置页布置你的 Codex
-              工作空间。
+              下载已经打包好的 macOS 客户端，通过可视化设置页布置你的 Codex 工作空间。无需安装
+              Node.js 或 Bun。
             </p>
-            <p className="text-muted mt-3 flex items-center gap-2 text-sm sm:mt-4">
-              <span className="bg-signal size-2 rounded-full" aria-hidden="true"></span>
-              未签名、未公证 · 尚未提供 Intel 构建
+            <p className="text-muted mt-3 flex items-start gap-2 text-xs leading-5 sm:mt-4 sm:text-sm">
+              <span
+                className="bg-signal mt-1.5 size-2 shrink-0 rounded-full"
+                aria-hidden="true"
+              ></span>
+              <span>
+                v{desktopPreviewVersion} · Apple Silicon · 未使用 Developer ID 签名、未公证
+              </span>
             </p>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-8 sm:mt-8 lg:grid-cols-12 lg:gap-x-10 lg:gap-y-12">
+        <div className="mt-6 grid gap-5 sm:mt-8 sm:gap-8 lg:grid-cols-12 lg:gap-x-10 lg:gap-y-12">
           <div className="install-stage min-w-0 lg:col-span-7">
             <div className="border-line border bg-white">
               <div className="border-line flex items-center justify-between gap-6 border-b px-5 py-3 sm:px-6">
-                <span className="text-muted font-mono text-xs">Terminal</span>
-                <CopyInstallCommand />
+                <span className="text-muted font-mono text-xs">Codex Skin for macOS</span>
+                <span className="text-muted text-xs">arm64 · DMG</span>
               </div>
-              <pre className="max-w-full overflow-x-auto p-4 text-xs leading-6 whitespace-pre text-ink sm:p-6 sm:text-sm sm:leading-7">
-                <code>{installCommand}</code>
-              </pre>
+              <div className="grid grid-cols-[auto_1fr] items-center gap-4 p-4 sm:gap-7 sm:p-7">
+                <img className="size-12 sm:size-20" src={iconUrl} alt="" width="80" height="80" />
+                <div>
+                  <p className="text-xl font-semibold tracking-[-0.025em] text-ink">
+                    Codex Skin {desktopPreviewVersion}
+                  </p>
+                  <p className="text-muted mt-2 text-sm leading-6">
+                    面向 Apple Silicon Mac 的桌面客户端预览版。
+                  </p>
+                </div>
+              </div>
+              <div className="border-line grid grid-cols-[1fr_auto] items-center gap-3 border-t p-4 sm:p-6">
+                <a
+                  className="bg-brand hover:bg-brand-strong focus-visible:outline-brand inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold text-white transition-colors"
+                  href={desktopDmgUrl}
+                >
+                  <ArrowDown className="size-4" />
+                  下载 DMG
+                </a>
+                <a
+                  className="group decoration-line hover:text-brand inline-flex min-h-11 items-center justify-center gap-2 text-sm font-semibold text-ink underline decoration-1 underline-offset-4 transition-colors"
+                  href={desktopZipUrl}
+                >
+                  备用 ZIP
+                  <ArrowUpRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </a>
+              </div>
             </div>
           </div>
 
           <h2 className="sr-only">使用步骤</h2>
           <ol
             id="usage"
-            className="border-line grid border-y lg:col-span-12 lg:row-start-2 lg:grid-cols-3"
+            className="border-line grid grid-cols-3 border-y lg:col-span-12 lg:row-start-2"
           >
             {installSteps.map((step, index) => (
               <li
-                className="border-line grid grid-cols-[2rem_1fr] gap-4 border-b py-4 last:border-b-0 sm:py-5 lg:border-r lg:border-b-0 lg:px-6 lg:last:border-r-0"
+                className="border-line flex flex-col gap-3 border-r px-2 py-4 last:border-r-0 sm:px-4 lg:grid lg:grid-cols-[2rem_1fr] lg:gap-4 lg:px-6 lg:py-5"
                 key={step.title}
               >
                 <span className="border-brand text-brand grid size-7 place-items-center rounded-full border text-xs font-semibold">
@@ -170,7 +220,9 @@ function InstallHero() {
                 </span>
                 <div>
                   <h3 className="font-semibold text-ink">{step.title}</h3>
-                  <p className="text-muted mt-1 text-sm leading-6 sm:mt-2">{step.description}</p>
+                  <p className="text-muted mt-1 hidden text-sm leading-6 sm:mt-2 sm:block">
+                    {step.description}
+                  </p>
                 </div>
               </li>
             ))}
@@ -185,35 +237,77 @@ function InstallHero() {
               <div className="flex items-start justify-between gap-6 py-3">
                 <dt className="text-muted shrink-0">需要</dt>
                 <dd className="max-w-[22rem] text-right font-medium text-ink">
-                  Codex 桌面端 · Node.js 22+ · Bun 1.3.14
+                  Codex 桌面端 · 无需 Node.js 或 Bun
                 </dd>
               </div>
               <div className="flex items-start justify-between gap-6 py-3">
-                <dt className="text-muted shrink-0">退出</dt>
-                <dd className="text-right font-medium text-ink">从应用菜单退出后停止主题维护</dd>
+                <dt className="text-muted shrink-0">安全</dt>
+                <dd className="max-w-[22rem] text-right font-medium text-ink">
+                  未使用 Apple Developer ID 签名、未公证
+                </dd>
               </div>
             </dl>
 
-            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+            <p className="text-muted mt-5 text-xs leading-5">
+              若 macOS 阻止打开，请先核对下载来源和
+              <a
+                className="decoration-line hover:text-brand mx-1 text-ink underline underline-offset-4"
+                href={desktopChecksumsUrl}
+              >
+                SHA-256
+              </a>
+              ，尝试打开一次后前往“系统设置 → 隐私与安全性”选择“仍要打开”。
+            </p>
+
+            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
               <a
                 className="group border-brand text-brand hover:bg-brand inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors hover:text-white"
-                href={`${githubUrl}/blob/main/.github/README.md#快速开始`}
+                href={desktopReleaseUrl}
                 target="_blank"
                 rel="noreferrer"
               >
-                完整安装说明
+                查看版本说明
                 <ArrowUpRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </a>
               <a
                 className="group decoration-line hover:text-brand inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink underline decoration-1 underline-offset-4 transition-colors"
-                href={githubUrl}
-                target="_blank"
-                rel="noreferrer"
+                href="#source-build"
               >
-                查看源码
-                <ArrowUpRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                从源码构建
               </a>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function SourceBuild() {
+  return (
+    <section id="source-build" className="border-line border-b bg-white">
+      <div className="mx-auto grid w-[min(calc(100%_-_2rem),80rem)] gap-8 py-14 lg:grid-cols-12 lg:items-center lg:py-16">
+        <div className="lg:col-span-5">
+          <p className="text-brand font-mono text-xs tracking-[0.08em] uppercase">
+            Developer option
+          </p>
+          <h2 className="mt-3 text-[clamp(1.75rem,2.8vw,2.5rem)] leading-tight font-medium tracking-[-0.03em] text-ink">
+            也可以从源码构建
+          </h2>
+          <p className="text-muted mt-4 max-w-[32rem] text-sm leading-6">
+            这是面向开发者的备用方式，需要 Node.js 22+ 与 Bun 1.3.14。普通用户直接下载上方 DMG
+            即可。
+          </p>
+        </div>
+        <div className="min-w-0 lg:col-span-7">
+          <div className="border-line border bg-canvas">
+            <div className="border-line flex items-center justify-between gap-6 border-b px-5 py-3 sm:px-6">
+              <span className="text-muted font-mono text-xs">Terminal</span>
+              <CopyInstallCommand />
+            </div>
+            <pre className="max-w-full overflow-x-auto p-4 text-xs leading-6 whitespace-pre text-ink sm:p-6 sm:text-sm sm:leading-7">
+              <code>{installCommand}</code>
+            </pre>
           </div>
         </div>
       </div>
@@ -526,21 +620,19 @@ function ReleaseChannels() {
               <img src={iconUrl} alt="" className="size-12" width="48" height="48" />
               <div className="text-muted flex items-center gap-2 text-sm">
                 <span className="bg-signal size-2 rounded-full" aria-hidden="true"></span>
-                开发预览
+                预览版已发布
               </div>
             </div>
             <h3 className="mt-8 text-2xl font-medium tracking-[-0.025em]">macOS 客户端</h3>
             <p className="text-muted mt-4 max-w-[30rem] text-sm leading-6">
-              面向普通用户的主产品。当前支持 Apple Silicon，正式签名、公证与 Release 流程仍在补齐。
+              面向普通用户的主产品。当前提供 Apple Silicon 开发预览；正式签名与公证仍在补齐。
             </p>
             <a
-              className="group border-brand text-brand hover:bg-brand mt-8 inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors hover:text-white"
-              href={releasesUrl}
-              target="_blank"
-              rel="noreferrer"
+              className="bg-brand hover:bg-brand-strong mt-8 inline-flex min-h-11 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-white transition-colors"
+              href={desktopDmgUrl}
             >
-              查看 Releases
-              <ArrowUpRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <ArrowDown className="size-4" />
+              下载 macOS 预览版
             </a>
           </article>
 
@@ -604,6 +696,7 @@ function App() {
       <Header />
       <main>
         <InstallHero />
+        <SourceBuild />
         <ProductProof />
         <SettingsProof />
         <Layers />
