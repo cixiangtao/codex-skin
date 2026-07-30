@@ -19,9 +19,9 @@ jobs:
 
         ### 本次更新
 
-        - 新增 macOS 菜单栏图标选择器。
-        - 内置经典、像素猫和像素幽灵三种样式，像素款支持逐帧动画。
-        - 图标选择会立即应用并在下次启动时保留。
+        - 新增启动后的每日更新检测，以及应用菜单和状态栏菜单中的手动检查入口。
+        - 发现新版本后可直接下载 DMG，客户端会按照 Release 中的 SHA-256 校验值验证文件。
+        - 校验通过后自动打开 DMG，由用户确认覆盖安装；无需 Apple Developer ID。
 
         ### 安装
 
@@ -67,6 +67,8 @@ jobs:
           bun run test
 
       - name: Build Apple Silicon preview
+        env:
+          CODEX_SKIN_DESKTOP_RELEASE_TAG: ${{ github.ref_name }}
         run: bun run desktop:dist:preview
 
       - name: Verify release artifacts
@@ -100,6 +102,7 @@ jobs:
 
           bundle_id="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$app/Contents/Info.plist")"
           test "$bundle_id" = "com.anys.codex-skin"
+          grep -Fq "$GITHUB_REF_NAME" desktop-dist/main.js
 
           if codesign -dv --verbose=4 "$app" 2>&1 | grep -q "Authority=Developer ID Application"; then
             echo "::error::Preview unexpectedly contains a Developer ID signature"

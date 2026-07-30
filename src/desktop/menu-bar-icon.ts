@@ -13,6 +13,7 @@ interface MenuBarIconControllerOptions {
 export interface MenuBarIconController {
   apply(iconId: MenuBarIconId): void
   destroy(): void
+  setContextMenu(contextMenu: Menu): void
 }
 
 /** Owns one persistent macOS status item and advances built-in pixel animation frames. */
@@ -21,6 +22,7 @@ export function createMenuBarIconController(
 ): MenuBarIconController {
   let activeIcon: MenuBarIconId | undefined
   let animationTimer: ReturnType<typeof setInterval> | undefined
+  let contextMenu = options.contextMenu
   let frameIndex = 0
   let tray: Tray | undefined
 
@@ -39,7 +41,7 @@ export function createMenuBarIconController(
   const ensureTray = (image: NativeImage) => {
     if (tray && !tray.isDestroyed()) return tray
     tray = options.createTray(image)
-    tray.setContextMenu(options.contextMenu)
+    tray.setContextMenu(contextMenu)
     tray.setToolTip("Codex Skin")
     tray.on("click", options.onClick)
     return tray
@@ -74,6 +76,10 @@ export function createMenuBarIconController(
       activeIcon = undefined
       if (tray && !tray.isDestroyed()) tray.destroy()
       tray = undefined
+    },
+    setContextMenu: (nextContextMenu) => {
+      contextMenu = nextContextMenu
+      if (tray && !tray.isDestroyed()) tray.setContextMenu(contextMenu)
     },
   }
 }

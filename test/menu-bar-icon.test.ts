@@ -23,6 +23,7 @@ test("built-in menu bar icons provide valid static and animated PNG frames", () 
 test("menu bar icon controller animates frames, switches styles, and cleans up", () => {
   vi.useFakeTimers()
   const images: Array<{ dataUrl: string; template: boolean }> = []
+  const contextMenus: unknown[] = []
   const trayImages: Array<{ dataUrl: string; template: boolean }> = []
   const listeners = new Map<string, () => void>()
   let destroyed = false
@@ -37,7 +38,9 @@ test("menu bar icon controller animates frames, switches styles, and cleans up",
       listeners.set(event, listener)
       return tray
     },
-    setContextMenu: () => undefined,
+    setContextMenu: (contextMenu: unknown) => {
+      contextMenus.push(contextMenu)
+    },
     setImage: (image: { dataUrl: string; template: boolean }) => {
       trayImages.push(image)
     },
@@ -78,6 +81,10 @@ test("menu bar icon controller animates frames, switches styles, and cleans up",
   const imageCountAfterSwitch = trayImages.length
   vi.advanceTimersByTime(2000)
   assert.equal(trayImages.length, imageCountAfterSwitch)
+
+  const updatedContextMenu = { id: "updated" }
+  controller.setContextMenu(updatedContextMenu as never)
+  assert.equal(contextMenus.at(-1), updatedContextMenu)
 
   controller.destroy()
   assert.equal(destroyed, true)

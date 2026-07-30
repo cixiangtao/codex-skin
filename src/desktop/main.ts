@@ -1,7 +1,7 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { app, BrowserWindow, dialog, Menu, nativeImage, shell, Tray } from "electron"
+import { app, BrowserWindow, dialog, Menu, nativeImage, net, shell, Tray } from "electron"
 
 import { createCodexSkinCore } from "../core/index.ts"
 import type { CodexSkinCore } from "../core/index.ts"
@@ -12,6 +12,8 @@ import { createDesktopBackgroundLifecycle } from "./background-lifecycle.ts"
 import { desktopDevelopmentSettings, desktopNavigationOrigins } from "./development.ts"
 import { createMenuBarIconController } from "./menu-bar-icon.ts"
 import type { MenuBarIconController } from "./menu-bar-icon.ts"
+import { createDesktopUpdateController, currentDesktopReleaseTag } from "./update.ts"
+import type { DesktopUpdateController } from "./update.ts"
 
 type SettingsServer = Awaited<ReturnType<typeof listenSettingsServer>>
 
@@ -28,6 +30,7 @@ let menuBarIcon: MenuBarIconController | undefined
 let readyToQuit = false
 let settingsServer: SettingsServer | undefined
 let shutdownTask: Promise<void> | undefined
+let updateController: DesktopUpdateController | undefined
 
 function projectRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
@@ -56,6 +59,18 @@ function showMainWindow() {
   mainWindow.focus()
 }
 
+function updateMenuItem() {
+  const state = updateController?.getMenuItemState() || {
+    enabled: false,
+    label: "检查更新…",
+  }
+  return {
+    enabled: state.enabled,
+    label: state.label,
+    click: () => void updateController?.checkForUpdates({ manual: true }),
+  }
+}
+
 function installApplicationMenu() {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
@@ -63,6 +78,8 @@ function installApplicationMenu() {
         label: APPLICATION_NAME,
         submenu: [
           { label: "打开设置", accelerator: "CommandOrControl+,", click: showMainWindow },
+          { type: "separator" },
+          updateMenuItem(),
           { type: "separator" },
           { role: "hide", label: "隐藏 Codex Skin" },
           { role: "hideOthers", label: "隐藏其他应用" },
@@ -96,14 +113,24 @@ function installApplicationMenu() {
   )
 }
 
-function installMenuBarIcon() {
-  const contextMenu = Menu.buildFromTemplate([
+function createMenuBarContextMenu() {
+  return Menu.buildFromTemplate([
     { label: "打开 Codex Skin", click: showMainWindow },
+    { type: "separator" },
+    updateMenuItem(),
     { type: "separator" },
     { role: "quit", label: "退出 Codex Skin" },
   ])
+}
+
+function refreshUpdateMenus() {
+  installApplicationMenu()
+  menuBarIcon?.setContextMenu(createMenuBarContextMenu())
+}
+
+function installMenuBarIcon() {
   menuBarIcon = createMenuBarIconController({
-    contextMenu,
+    contextMenu: createMenuBarContextMenu(),
     createImage: (dataUrl) => nativeImage.createFromDataURL(dataUrl),
     createTray: (image) => new Tray(image, "5c33b77f-8197-4df0-a890-c165a0e95e0a"),
     onClick: showMainWindow,
@@ -184,6 +211,7 @@ async function shutdown() {
     } catch (error) {
       console.error("Unable to stop the Codex Skin background:", error)
     }
+    await updateController?.destroy()
     menuBarIcon?.destroy()
     if (settingsServer) await closeSettingsServer(settingsServer)
   })()
@@ -210,6 +238,19 @@ if (!hasSingleInstanceLock) {
       const rendererUrl = developmentRendererUrl
       const developmentSettings = desktopDevelopmentSettings(rendererUrl, projectRoot())
       installDevelopmentDockIcon()
+      updateController = createDesktopUpdateController({
+        currentTag: currentDesktopReleaseTag(),
+        dataDirectory,
+        downloadsDirectory: app.getPath("downloads"),
+        fetchImpl: (input, init) => net.fetch(input, init),
+        onStateChange: refreshUpdateMenus,
+        openPath: (filePath) => shell.openPath(filePath),
+        reportError: (message, error) => console.error(message, error),
+        setProgress: (progress) => {
+          if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setProgressBar(progress)
+        },
+        showMessageBox: (options) => dialog.showMessageBox(options),
+      })
       installApplicationMenu()
       const activeMenuBarIcon = installMenuBarIcon()
       const initialConfig = await readConfig({ dataDirectory })
@@ -228,6 +269,7 @@ if (!hasSingleInstanceLock) {
         ...developmentSettings,
       })
       await createMainWindow(settingsServer, rendererUrl)
+      updateController.startAutomaticChecks()
       if (process.env.CODEX_SKIN_SKIP_AUTO_START !== "1") void startBackgroundOnLaunch(core)
     })
     .catch((error) => {
