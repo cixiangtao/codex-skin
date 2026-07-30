@@ -1,10 +1,10 @@
 # Codex Skin：Codex 桌面端主题换装工具
 
-Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面美化工具。无需修改或重新签名 `ChatGPT.app`，即可通过可视化设置为 Codex 添加全局壁纸、主面板人物布景和侧边栏装饰，自由打造浅色、深色、二次元等个性化 Codex 主题。
+Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面美化工具。无需修改或重新签名 `ChatGPT.app`，即可通过可视化设置为 Codex 添加全局壁纸、主面板人物布景、侧边栏装饰和像素动画菜单栏图标，自由打造浅色、深色、二次元等个性化 Codex 主题。
 
 [访问项目主页](https://cixiangtao.github.io/codex-skin/) ·
-[下载 Apple Silicon 预览版](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.dmg) ·
-[查看 Releases](https://github.com/cixiangtao/codex-skin/releases/tag/desktop-v1.1.2-preview.1) ·
+[下载 Apple Silicon 预览版](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.dmg) ·
+[查看 Releases](https://github.com/cixiangtao/codex-skin/releases/tag/desktop-v1.1.2-preview.2) ·
 [查看 npm CLI](https://www.npmjs.com/package/codex-skin)
 
 > [!IMPORTANT]
@@ -62,6 +62,7 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 - 主面板与侧边栏可使用不同图片，也可以分别启用或关闭
 - 支持独立的全局背景图，覆盖整个 Codex 窗口并保留原生半透明侧边栏
 - 支持调节 Codex 原背景色的透明度，并自动跟随浅色、深色主题
+- 支持从经典、像素猫和像素幽灵中选择 macOS 菜单栏图标，像素款会逐帧播放动画
 - 支持拖拽定位，以及大小、透明度、边缘柔化和 X/Y 坐标调节
 - 支持 PNG、JPEG、WebP、GIF、AVIF，单张图片最大 25 MB
 - 保留 PNG、WebP 图片的透明通道
@@ -72,12 +73,12 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 
 普通用户直接下载已打包的 Apple Silicon 客户端，不需要安装 Node.js、Bun 或项目依赖：
 
-1. 下载 [Codex-Skin-1.1.2-arm64.dmg](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.dmg)。
+1. 下载 [Codex-Skin-1.1.2-arm64.dmg](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.dmg)。
 2. 打开 DMG，将 `Codex Skin.app` 拖入“应用程序”文件夹。
 3. 打开 Codex Skin，在设置页选择图片并开启需要的背景层。
 
-也可以下载[备用 ZIP](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.zip)，并使用
-[SHA-256 校验文件](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/SHA256SUMS.txt)
+也可以下载[备用 ZIP](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.zip)，并使用
+[SHA-256 校验文件](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/SHA256SUMS.txt)
 核对产物。
 
 > [!WARNING]
@@ -96,7 +97,9 @@ Codex 仍会直接启动，因此首次运行不会改变原生界面。之后�
 
 ## 可视化设置
 
-设置页提供全局背景、主面板和侧边栏三个独立分区。全局背景可以：
+设置页顶部提供独立的菜单栏图标选择器，选择后会立即更新 macOS 顶部状态栏并持久化；首期提供经典、像素猫和像素幽灵三种内置样式。
+
+背景设置提供全局背景、主面板和侧边栏三个独立分区。全局背景可以：
 
 - 从对应模块的内置素材列表快速选择，也可以继续上传自己的图片
 - 选择一张窗口级壁纸，并单独启用或关闭

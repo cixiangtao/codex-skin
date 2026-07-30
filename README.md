@@ -1,6 +1,6 @@
 # Codex Skin
 
-[下载 macOS 预览版（Apple Silicon）→](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.dmg) ·
+[下载 macOS 预览版（Apple Silicon）→](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.dmg) ·
 [访问项目主页 →](https://cixiangtao.github.io/codex-skin/) ·
 [查看完整 README →](https://github.com/cixiangtao/codex-skin/blob/main/.github/README.md)
 
@@ -23,14 +23,17 @@
 它与命令行入口共享同一套核心能力和配置目录，关闭设置窗口后仍会继续维护 Codex
 主题；从应用菜单退出后才会停止。
 
+客户端设置页还提供 macOS 菜单栏图标选择器，首期内置经典、像素猫和像素幽灵三种样式；
+像素款会逐帧播放动画，选择后立即生效并保存。
+
 客户端是唯一面向普通用户的产品入口。CLI 仅保留用于自动化测试、开发调试、无界面排障和
 客户端故障时的兜底恢复，不承载独立业务逻辑。
 
 直接下载：
 
-- [DMG（推荐）](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.dmg)
-- [ZIP（备用）](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/Codex-Skin-1.1.2-arm64.zip)
-- [SHA-256 校验值](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.1/SHA256SUMS.txt)
+- [DMG（推荐）](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.dmg)
+- [ZIP（备用）](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.zip)
+- [SHA-256 校验值](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/SHA256SUMS.txt)
 
 如果 macOS 阻止打开，请先确认下载来源与 SHA-256 校验值；尝试打开一次后，前往“系统设置 →
 隐私与安全性”选择“仍要打开”。Apple
