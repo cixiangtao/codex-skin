@@ -327,7 +327,7 @@ test("settings server requires its random session cookie", async () => {
     const authorized = await fetch(`${origin}/api/state`, { headers: { cookie } })
     assert.equal(authorized.status, 200)
     const state = (await authorized.json()) as { config: { version: number } }
-    assert.equal(state.config.version, 6)
+    assert.equal(state.config.version, 7)
   } finally {
     await new Promise<void>((resolve) => instance.server.close(() => resolve()))
     await rm(dataDirectory, { recursive: true, force: true })
@@ -457,6 +457,7 @@ test("settings server lists and applies bundled backgrounds from each module dir
 
 test("settings server saves controls and accepts a local image upload", async () => {
   const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "codex-skin-settings-"))
+  const menuBarIconChanges: string[] = []
   const originalImage = path.join(dataDirectory, "original.jpg")
   await writeFile(originalImage, Buffer.from([0xff, 0xd8, 0xff]))
   await writeConfig({ image: originalImage }, { dataDirectory })
@@ -465,6 +466,9 @@ test("settings server saves controls and accepts a local image upload", async ()
     entryPath: "/tmp/codex-skin.ts",
     token: "test-token",
     isCdpAvailableImpl: async () => false,
+    onConfigChange: (config) => {
+      menuBarIconChanges.push(config.menuBarIcon)
+    },
   })
   try {
     const { cookie, origin } = await authenticatedSession(instance.url)
@@ -500,6 +504,20 @@ test("settings server saves controls and accepts a local image upload", async ()
     assert.equal(saved.config.surfaces.main.illustrationOpacity, 0.72)
     assert.equal(saved.config.port, 9229)
     assert.equal(saved.application.reason, "cdp-unavailable")
+
+    const menuBarIconResponse = await fetch(`${origin}/api/config`, {
+      method: "PUT",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ menuBarIcon: "pixel-cat" }),
+    })
+    assert.equal(menuBarIconResponse.status, 200)
+    const menuBarIconPayload = (await menuBarIconResponse.json()) as {
+      application: { mode: string }
+      config: { menuBarIcon: string }
+    }
+    assert.equal(menuBarIconPayload.config.menuBarIcon, "pixel-cat")
+    assert.equal(menuBarIconPayload.application.mode, "saved")
+    assert.equal(menuBarIconChanges.at(-1), "pixel-cat")
 
     const transparentPng = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAFAgIAX8jx0gAAAABJRU5ErkJggg==",

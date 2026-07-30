@@ -24,6 +24,7 @@ export const acceptedImageTypes = new Set([
 
 export const defaultConfig = {
   enabled: false,
+  menuBarIcon: "classic",
   wallpaper: {
     backgroundTransparency: 1,
     enabled: false,

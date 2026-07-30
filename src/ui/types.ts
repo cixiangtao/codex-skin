@@ -1,3 +1,5 @@
+import type { MenuBarIconId } from "../shared/menu-bar-icons.ts"
+
 export type BackgroundSurface = "main" | "sidebar"
 export type BackgroundSettingsTab = "wallpaper" | BackgroundSurface
 
@@ -35,6 +37,7 @@ export interface WallpaperConfig {
 
 export interface BackgroundConfig {
   enabled: boolean
+  menuBarIcon: MenuBarIconId
   wallpaper: WallpaperConfig
   surfaces: Record<BackgroundSurface, SurfaceBackgroundConfig>
 }
@@ -60,7 +63,14 @@ export interface StatePayload {
   status: BackgroundStatus
 }
 
-export type BusyAction = "image" | "save" | "start" | "surface-toggle" | "toggle" | null
+export type BusyAction =
+  | "image"
+  | "menu-bar-icon"
+  | "save"
+  | "start"
+  | "surface-toggle"
+  | "toggle"
+  | null
 export type PreviewTheme = "system" | "light" | "dark"
 export type RangeKey =
   | "backgroundTransparency"

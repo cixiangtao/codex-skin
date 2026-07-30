@@ -50,7 +50,7 @@ const MAX_IMAGE_BYTES = 25 * 1024 * 1024
 const DEFAULT_IDLE_TIMEOUT_MS = 30 * 60 * 1000
 const defaultUiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../dist/ui")
 const COOKIE_NAME = "codex_skin_settings"
-const EDITABLE_CONFIG_KEYS = new Set(["enabled"])
+const EDITABLE_CONFIG_KEYS = new Set(["enabled", "menuBarIcon"])
 const EDITABLE_WALLPAPER_KEYS = new Set([
   "backgroundTransparency",
   "enabled",
@@ -107,6 +107,7 @@ export interface SettingsOptions extends SettingsProcessOptions {
   entryPath?: string
   idleTimeoutMs?: number | null
   isCdpAvailableImpl?: (options: { port: number }) => Promise<boolean>
+  onConfigChange?: (config: BackgroundConfig) => Promise<void> | void
   port?: number
   spawnImpl?: SpawnImplementation
   startBackgroundRestartWorkerImpl?: typeof startBackgroundRestartWorker
@@ -502,7 +503,11 @@ async function saveAndSync(input: unknown, options: SettingsOptions) {
     },
     { dataDirectory: options.dataDirectory },
   )
-  const application = await coreForSettings(options).sync(config)
+  await options.onConfigChange?.(config)
+  const backgroundChanged = Object.keys(updates).some((key) => key !== "menuBarIcon")
+  const application = backgroundChanged
+    ? await coreForSettings(options).sync(config)
+    : { applied: true, mode: "saved" as const }
   return { ...(await statePayload(config, options)), application }
 }
 

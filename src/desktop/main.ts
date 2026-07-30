@@ -1,7 +1,7 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { app, BrowserWindow, dialog, Menu, nativeImage, shell } from "electron"
+import { app, BrowserWindow, dialog, Menu, nativeImage, shell, Tray } from "electron"
 
 import { createCodexSkinCore } from "../core/index.ts"
 import type { CodexSkinCore } from "../core/index.ts"
@@ -10,6 +10,8 @@ import { readConfig, resolveDataDirectory } from "../runtime/config.ts"
 import { listenSettingsServer } from "../runtime/settings-server.ts"
 import { createDesktopBackgroundLifecycle } from "./background-lifecycle.ts"
 import { desktopDevelopmentSettings, desktopNavigationOrigins } from "./development.ts"
+import { createMenuBarIconController } from "./menu-bar-icon.ts"
+import type { MenuBarIconController } from "./menu-bar-icon.ts"
 
 type SettingsServer = Awaited<ReturnType<typeof listenSettingsServer>>
 
@@ -22,6 +24,7 @@ const hasSingleInstanceLock = isDevelopment || app.requestSingleInstanceLock()
 const dataDirectory = resolveDataDirectory()
 let core: CodexSkinCore | undefined
 let mainWindow: BrowserWindow | undefined
+let menuBarIcon: MenuBarIconController | undefined
 let readyToQuit = false
 let settingsServer: SettingsServer | undefined
 let shutdownTask: Promise<void> | undefined
@@ -91,6 +94,21 @@ function installApplicationMenu() {
       },
     ]),
   )
+}
+
+function installMenuBarIcon() {
+  const contextMenu = Menu.buildFromTemplate([
+    { label: "打开 Codex Skin", click: showMainWindow },
+    { type: "separator" },
+    { role: "quit", label: "退出 Codex Skin" },
+  ])
+  menuBarIcon = createMenuBarIconController({
+    contextMenu,
+    createImage: (dataUrl) => nativeImage.createFromDataURL(dataUrl),
+    createTray: (image) => new Tray(image, "5c33b77f-8197-4df0-a890-c165a0e95e0a"),
+    onClick: showMainWindow,
+  })
+  return menuBarIcon
 }
 
 async function createMainWindow(server: SettingsServer, rendererUrl?: string) {
@@ -166,6 +184,7 @@ async function shutdown() {
     } catch (error) {
       console.error("Unable to stop the Codex Skin background:", error)
     }
+    menuBarIcon?.destroy()
     if (settingsServer) await closeSettingsServer(settingsServer)
   })()
   return await shutdownTask
@@ -192,6 +211,9 @@ if (!hasSingleInstanceLock) {
       const developmentSettings = desktopDevelopmentSettings(rendererUrl, projectRoot())
       installDevelopmentDockIcon()
       installApplicationMenu()
+      const activeMenuBarIcon = installMenuBarIcon()
+      const initialConfig = await readConfig({ dataDirectory })
+      activeMenuBarIcon.apply(initialConfig.menuBarIcon)
       const lifecycle = createDesktopBackgroundLifecycle({
         dataDirectory,
         onError: (error) => console.error("Codex Skin background monitor stopped:", error),
@@ -201,6 +223,7 @@ if (!hasSingleInstanceLock) {
         core,
         dataDirectory,
         idleTimeoutMs: null,
+        onConfigChange: (config) => activeMenuBarIcon.apply(config.menuBarIcon),
         uiRoot: uiRoot(),
         ...developmentSettings,
       })

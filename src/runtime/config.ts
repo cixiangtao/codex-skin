@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
+import { isMenuBarIconId } from "../shared/menu-bar-icons.ts"
 import type {
   BackgroundConfig,
   BackgroundConfigLike,
@@ -44,8 +45,9 @@ export const DEFAULT_WALLPAPER_CONFIG = Object.freeze({
 } as const satisfies WallpaperConfig)
 
 export const DEFAULT_CONFIG = Object.freeze({
-  version: 6,
+  version: 7,
   enabled: true,
+  menuBarIcon: "classic",
   wallpaper: DEFAULT_WALLPAPER_CONFIG,
   surfaces: DEFAULT_SURFACE_CONFIGS,
   port: 9229,
@@ -180,8 +182,11 @@ export function normalizeConfig(
         : DEFAULT_CONFIG.portMode
 
   return {
-    version: 6,
+    version: 7,
     enabled: source.enabled === undefined ? DEFAULT_CONFIG.enabled : Boolean(source.enabled),
+    menuBarIcon: isMenuBarIconId(source.menuBarIcon)
+      ? source.menuBarIcon
+      : DEFAULT_CONFIG.menuBarIcon,
     wallpaper: normalizeWallpaper(source.wallpaper, workingDirectory),
     surfaces: {
       main: normalizeSurface(

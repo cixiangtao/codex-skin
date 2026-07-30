@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { ChangeEvent, DragEvent, FormEvent, PointerEvent as ReactPointerEvent } from "react"
 
+import type { MenuBarIconId } from "../shared/menu-bar-icons.ts"
 import { ControlPanel } from "./components/control-panel.tsx"
 import { PreviewSection } from "./components/preview-section.tsx"
 import { SurfaceSettingsPanel } from "./components/surface-settings-panel.tsx"
@@ -406,6 +407,26 @@ export function App() {
     }
   }
 
+  const applyMenuBarIcon = async (menuBarIcon: MenuBarIconId) => {
+    const previousIcon = config.menuBarIcon
+    if (previousIcon === menuBarIcon) return
+    setConfig((current) => ({ ...current, menuBarIcon }))
+    setBusyAction("menu-bar-icon")
+    try {
+      const payload = await api<StatePayload>("/api/config", {
+        method: "PUT",
+        body: JSON.stringify({ menuBarIcon }),
+      })
+      applyState(payload)
+      notify("菜单栏图标已更新。")
+    } catch (error) {
+      setConfig((current) => ({ ...current, menuBarIcon: previousIcon }))
+      notify(describeError(error), true)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   const startBackground = async () => {
     setBusyAction("start")
     try {
@@ -605,6 +626,7 @@ export function App() {
             config={config}
             onActiveTabChange={setActiveTab}
             onEnabledChange={applyEnabled}
+            onMenuBarIconChange={applyMenuBarIcon}
           >
             {activeSurface ? (
               <SurfaceSettingsPanel

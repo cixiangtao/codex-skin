@@ -1,5 +1,7 @@
 import type { ChildProcess, SpawnOptions } from "node:child_process"
 
+import type { MenuBarIconId } from "../shared/menu-bar-icons.ts"
+
 export const BACKGROUND_SURFACES = ["main", "sidebar"] as const
 
 export type BackgroundSurface = (typeof BACKGROUND_SURFACES)[number]
@@ -25,8 +27,9 @@ export interface WallpaperConfig {
 }
 
 export interface BackgroundConfig {
-  version: 6
+  version: 7
   enabled: boolean
+  menuBarIcon: MenuBarIconId
   wallpaper: WallpaperConfig
   surfaces: Record<BackgroundSurface, SurfaceBackgroundConfig>
   port: number

@@ -1,8 +1,10 @@
 import type { ReactNode } from "react"
 
+import type { MenuBarIconId } from "../../shared/menu-bar-icons.ts"
 import { cn } from "../lib/cn.ts"
 import { backgroundTabs } from "../model.ts"
 import type { BackgroundConfig, BackgroundSettingsTab, BusyAction } from "../types.ts"
+import { MenuBarIconPicker } from "./menu-bar-icon-picker.tsx"
 import { ToggleSwitch } from "./toggle-switch.tsx"
 
 interface ControlPanelProps {
@@ -12,6 +14,7 @@ interface ControlPanelProps {
   config: BackgroundConfig
   onActiveTabChange: (tab: BackgroundSettingsTab) => void
   onEnabledChange: (enabled: boolean) => Promise<void>
+  onMenuBarIconChange: (iconId: MenuBarIconId) => Promise<void>
 }
 
 /** Renders the global background controls and composes the selected surface settings. */
@@ -22,6 +25,7 @@ export function ControlPanel({
   config,
   onActiveTabChange,
   onEnabledChange,
+  onMenuBarIconChange,
 }: ControlPanelProps) {
   return (
     <aside
@@ -29,7 +33,12 @@ export function ControlPanel({
       aria-labelledby="controlsTitle"
     >
       <div>
-        <div className="flex items-center justify-between gap-5">
+        <MenuBarIconPicker
+          disabled={busyAction !== null}
+          onChange={onMenuBarIconChange}
+          value={config.menuBarIcon}
+        />
+        <div className="mt-5 flex items-center justify-between gap-5">
           <h2 id="controlsTitle" className="font-display text-[30px] leading-none">
             背景设置
           </h2>

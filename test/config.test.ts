@@ -76,7 +76,8 @@ test("writeConfig persists normalized JSON atomically", async () => {
     assert.equal(raw.surfaces.main.illustrationBlur, 6)
     assert.equal(raw.surfaces.main.illustrationOpacity, 0.65)
     assert.equal(raw.surfaces.sidebar.enabled, false)
-    assert.equal(raw.version, 6)
+    assert.equal(raw.version, 7)
+    assert.equal(raw.menuBarIcon, "classic")
     assert.equal(raw.portMode, "auto")
   } finally {
     await rm(dataDirectory, { recursive: true, force: true })
@@ -132,6 +133,11 @@ test("normalizeConfig preserves and clamps the global wallpaper", () => {
   })
 })
 
+test("normalizeConfig preserves known menu bar icons and rejects unknown values", () => {
+  assert.equal(normalizeConfig({ menuBarIcon: "pixel-cat" }).menuBarIcon, "pixel-cat")
+  assert.equal(normalizeConfig({ menuBarIcon: "custom-file" }).menuBarIcon, "classic")
+})
+
 test("normalizeConfig migrates the v3 background into the main surface", () => {
   const config = normalizeConfig({
     version: 3,
@@ -141,7 +147,7 @@ test("normalizeConfig migrates the v3 background into the main surface", () => {
     illustrationOpacity: 0.4,
   })
 
-  assert.equal(config.version, 6)
+  assert.equal(config.version, 7)
   assert.deepEqual(config.wallpaper, DEFAULT_CONFIG.wallpaper)
   assert.equal(config.surfaces.main.enabled, true)
   assert.equal(config.surfaces.main.image, "/tmp/legacy.png")
