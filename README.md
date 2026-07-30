@@ -1,6 +1,6 @@
 # Codex Skin
 
-[下载 macOS 预览版（Apple Silicon）→](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.dmg) ·
+[下载 macOS 预览版（Apple Silicon）→](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg) ·
 [访问项目主页 →](https://cixiangtao.github.io/codex-skin/) ·
 [查看完整 README →](https://github.com/cixiangtao/codex-skin/blob/main/.github/README.md)
 
@@ -26,14 +26,19 @@
 客户端设置页还提供 macOS 菜单栏图标选择器，首期内置经典、像素猫和像素幽灵三种样式；
 像素款会逐帧播放动画，选择后立即生效并保存。
 
+客户端启动后每天静默检查一次 GitHub Release，也可以从应用菜单或菜单栏图标中手动选择“检查
+更新…”。发现新版本后可以直接下载 DMG；客户端会使用 Release 附带的 SHA-256 校验值验证
+文件，验证通过后自动打开安装包。由于项目不使用付费 Apple Developer ID，最后的应用覆盖仍由
+用户在 DMG 中确认完成，客户端不会自行替换已安装程序。
+
 客户端是唯一面向普通用户的产品入口。CLI 仅保留用于自动化测试、开发调试、无界面排障和
 客户端故障时的兜底恢复，不承载独立业务逻辑。
 
 直接下载：
 
-- [DMG（推荐）](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.dmg)
-- [ZIP（备用）](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.zip)
-- [SHA-256 校验值](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/SHA256SUMS.txt)
+- [DMG（推荐）](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg)
+- [ZIP（备用）](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.zip)
+- [SHA-256 校验值](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/SHA256SUMS.txt)
 
 如果 macOS 阻止打开，请先确认下载来源与 SHA-256 校验值；尝试打开一次后，前往“系统设置 →
 隐私与安全性”选择“仍要打开”。Apple
@@ -75,7 +80,9 @@ bun run desktop:dist:preview
 ```
 
 推送格式为 `desktop-v<版本>-preview.<序号>` 的标签后，GitHub Actions 会执行检查、生成
-DMG 与 ZIP、验证产物并创建 prerelease。当前构建尚未接入 Apple Developer ID 签名与公证。
+DMG 与 ZIP、验证产物并创建 prerelease。发布标签还会写入客户端，用于正确比较同一基础版本下
+的不同 Preview 序号。当前构建不接入 Apple Developer ID 签名与公证，因此更新流程只负责检测、
+下载、校验并打开 DMG，不会自动覆盖应用。
 
 ## Codex 主题换装效果
 

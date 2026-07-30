@@ -3,8 +3,8 @@
 Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面美化工具。无需修改或重新签名 `ChatGPT.app`，即可通过可视化设置为 Codex 添加全局壁纸、主面板人物布景、侧边栏装饰和像素动画菜单栏图标，自由打造浅色、深色、二次元等个性化 Codex 主题。
 
 [访问项目主页](https://cixiangtao.github.io/codex-skin/) ·
-[下载 Apple Silicon 预览版](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.dmg) ·
-[查看 Releases](https://github.com/cixiangtao/codex-skin/releases/tag/desktop-v1.1.2-preview.2) ·
+[下载 Apple Silicon 预览版](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg) ·
+[查看 Releases](https://github.com/cixiangtao/codex-skin/releases/tag/desktop-v1.1.2-preview.3) ·
 [查看 npm CLI](https://www.npmjs.com/package/codex-skin)
 
 > [!IMPORTANT]
@@ -63,6 +63,8 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 - 支持独立的全局背景图，覆盖整个 Codex 窗口并保留原生半透明侧边栏
 - 支持调节 Codex 原背景色的透明度，并自动跟随浅色、深色主题
 - 支持从经典、像素猫和像素幽灵中选择 macOS 菜单栏图标，像素款会逐帧播放动画
+- 启动后每天静默检查 GitHub Release，也支持从应用菜单或菜单栏图标手动检查更新
+- 可直接下载新版 DMG、核对 Release 中的 SHA-256 校验值，并在验证通过后打开安装包
 - 支持拖拽定位，以及大小、透明度、边缘柔化和 X/Y 坐标调节
 - 支持 PNG、JPEG、WebP、GIF、AVIF，单张图片最大 25 MB
 - 保留 PNG、WebP 图片的透明通道
@@ -73,12 +75,12 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 
 普通用户直接下载已打包的 Apple Silicon 客户端，不需要安装 Node.js、Bun 或项目依赖：
 
-1. 下载 [Codex-Skin-1.1.2-arm64.dmg](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.dmg)。
+1. 下载 [Codex-Skin-1.1.2-arm64.dmg](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg)。
 2. 打开 DMG，将 `Codex Skin.app` 拖入“应用程序”文件夹。
 3. 打开 Codex Skin，在设置页选择图片并开启需要的背景层。
 
-也可以下载[备用 ZIP](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/Codex-Skin-1.1.2-arm64.zip)，并使用
-[SHA-256 校验文件](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.2/SHA256SUMS.txt)
+也可以下载[备用 ZIP](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.zip)，并使用
+[SHA-256 校验文件](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/SHA256SUMS.txt)
 核对产物。
 
 > [!WARNING]
@@ -90,6 +92,10 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 客户端会打开内置设置页，以仅回环可访问的 Chrome DevTools Protocol（CDP）端口启动 Codex，
 自动应用当前配置，并在关闭设置窗口后继续维护所有新窗口。只有从应用菜单退出客户端时，后台
 监听才会停止。
+
+客户端不会使用需要付费 Apple Developer ID 的系统自动更新。检测到新版本后，它会下载并校验
+DMG，然后打开安装包；用户仍需将新版本拖入“应用程序”文件夹并确认替换。客户端不会自行修改
+现有应用，也不会在检查失败时打断正常启动。
 
 首次使用且尚未生成配置文件时，全局背景、主面板和侧边栏默认全部关闭，也不会预选图片；
 Codex 仍会直接启动，因此首次运行不会改变原生界面。之后可以在设置页主动选择图片并开启需要的
@@ -257,8 +263,9 @@ bun run desktop:dist:preview
 
 产物输出到 `release/`。推送格式为 `desktop-v<版本>-preview.<序号>` 的标签后，GitHub
 Actions 会重新执行代码检查与测试，构建并验证 DMG、ZIP 和 SHA-256 校验文件，然后创建 GitHub
-prerelease。客户端尚未接入 Apple Developer ID 签名、公证和 Intel Mac 构建，因此当前产物仍是
-开发预览。
+prerelease。工作流会将完整发布标签写入客户端，使更新检测可以区分同一基础版本下的 Preview
+序号。客户端不接入 Apple Developer ID 签名与公证，更新流程只负责检测、下载、SHA-256 校验和
+打开 DMG；Intel Mac 构建也尚未提供，因此当前产物仍是开发预览。
 
 普通本机打包仍可使用：
 
