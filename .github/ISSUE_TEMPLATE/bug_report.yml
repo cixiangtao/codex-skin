@@ -1,0 +1,72 @@
+name: Bug 报告
+description: 报告可以稳定复现的客户端、CLI 或项目主页问题
+title: "[Bug] "
+body:
+  - type: dropdown
+    id: surface
+    attributes:
+      label: 影响入口
+      options:
+        - macOS 桌面客户端
+        - npm CLI
+        - 项目主页或文档
+        - 构建或开发流程
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Codex Skin 版本
+      description: 填写桌面发布标签或 npm CLI 版本。
+      placeholder: desktop-v1.1.2-preview.3
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: 运行环境
+      description: 填写 macOS、芯片架构和 Codex 桌面端版本。
+      placeholder: macOS 15.x / Apple Silicon / Codex ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤
+      description: 提供可以重复触发问题的最小步骤。
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图
+      description: 请先移除令牌、用户名、个人路径、用户图片和其他隐私信息。
+      render: shell
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已经搜索过现有 Issue，没有找到相同问题。
+          required: true
+        - label: 这不是安全漏洞；安全问题会通过私密漏洞报告提交。
+          required: true
