@@ -43,6 +43,7 @@
     "build:ui": "electron-vite build --mode renderer-only --ignoreConfigWarning",
     "check": "bun run format:check && bun run lint && bun run type-check",
     "check:fix": "bun run format && bun run lint:fix && bun run type-check",
+    "ci": "bun run release:check && bun run desktop:build && bun run site:build",
     "desktop": "bun scripts/desktop-dev.ts",
     "desktop:build": "electron-vite build --ignoreConfigWarning",
     "desktop:dist": "bun run desktop:build && electron-builder --config electron-builder.yml",
