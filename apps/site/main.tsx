@@ -1,6 +1,7 @@
 import { StrictMode, useState } from "react"
 import { createRoot } from "react-dom/client"
 
+import releaseConfig from "../../config/release.json"
 import animeThemePreviewUrl from "../../docs/images/codex-skin-anime-theme-preview.jpg"
 import darkThemePreviewUrl from "../../docs/images/codex-skin-dark-theme-preview.jpg"
 import lightThemePreviewUrl from "../../docs/images/codex-skin-light-theme-preview.jpg"
@@ -13,8 +14,8 @@ import "./site.css"
 const githubUrl = "https://github.com/cixiangtao/codex-skin"
 const releasesUrl = `${githubUrl}/releases`
 const npmUrl = "https://www.npmjs.com/package/codex-skin"
-const desktopPreviewVersion = "1.1.2"
-const desktopPreviewTag = `desktop-v${desktopPreviewVersion}-preview.3`
+const desktopPreviewVersion = releaseConfig.desktop.version
+const desktopPreviewTag = `desktop-v${desktopPreviewVersion}-preview.${releaseConfig.desktop.preview}`
 const desktopReleaseUrl = `${releasesUrl}/tag/${desktopPreviewTag}`
 const desktopDmgUrl = `${releasesUrl}/download/${desktopPreviewTag}/Codex-Skin-${desktopPreviewVersion}-arm64.dmg`
 const desktopZipUrl = `${releasesUrl}/download/${desktopPreviewTag}/Codex-Skin-${desktopPreviewVersion}-arm64.zip`

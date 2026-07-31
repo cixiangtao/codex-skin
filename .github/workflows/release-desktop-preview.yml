@@ -17,12 +17,6 @@ jobs:
 
         这是面向 Apple Silicon Mac 的桌面客户端预览版。应用内置运行环境，普通用户无需安装 Node.js 或 Bun。
 
-        ### 本次更新
-
-        - 新增启动后的每日更新检测，以及应用菜单和状态栏菜单中的手动检查入口。
-        - 发现新版本后可直接下载 DMG，客户端会按照 Release 中的 SHA-256 校验值验证文件。
-        - 校验通过后自动打开 DMG，由用户确认覆盖安装；无需 Apple Developer ID。
-
         ### 安装
 
         1. 下载并打开 DMG 资产。
@@ -39,27 +33,28 @@ jobs:
 
     steps:
       - name: Checkout tagged source
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Verify preview tag
+      - name: Verify release source
         shell: bash
         run: |
-          version="$(bun -p "require('./package.json').version")"
-          case "$GITHUB_REF_NAME" in
-            "desktop-v${version}-preview."*) ;;
-            *)
-              echo "::error::Tag $GITHUB_REF_NAME does not match package version $version"
-              exit 1
-              ;;
-          esac
+          git show-ref --verify --quiet refs/remotes/origin/main
+          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main
+
+      - name: Verify preview tag
+        env:
+          CODEX_SKIN_EXPECTED_DESKTOP_TAG: ${{ github.ref_name }}
+        run: bun run release:contract
 
       - name: Check source
         run: |
@@ -129,6 +124,8 @@ jobs:
             "release/Codex-Skin-${version}-arm64.zip#Codex Skin ${version} for Apple Silicon (ZIP)" \
             "release/SHA256SUMS.txt#SHA-256 checksums" \
             --verify-tag \
+            --fail-on-no-commits \
+            --generate-notes \
             --prerelease \
             --latest=false \
             --title "Codex Skin ${version} · macOS preview ${preview_number}" \

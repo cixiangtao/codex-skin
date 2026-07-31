@@ -6,6 +6,7 @@
     "moduleResolution": "Bundler",
     "noEmit": true,
     "noUncheckedIndexedAccess": true,
+    "resolveJsonModule": true,
     "jsx": "react-jsx",
     "skipLibCheck": true,
     "strict": true,

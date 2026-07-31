@@ -5,7 +5,10 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 [访问项目主页](https://cixiangtao.github.io/codex-skin/) ·
 [下载 Apple Silicon 预览版](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg) ·
 [查看 Releases](https://github.com/cixiangtao/codex-skin/releases/tag/desktop-v1.1.2-preview.3) ·
-[查看 npm CLI](https://www.npmjs.com/package/codex-skin)
+[查看 npm CLI](https://www.npmjs.com/package/codex-skin) ·
+[参与贡献](../CONTRIBUTING.md) ·
+[获取帮助](../SUPPORT.md) ·
+[安全策略](../SECURITY.md)
 
 > [!IMPORTANT]
 > Codex Skin 目前仅支持 macOS，并需要已安装 Codex 桌面端。面向普通用户的正式入口是
@@ -40,7 +43,8 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 - **npm CLI**是独立的开发与支持渠道，只在 Core、CLI、共享运行时、诊断或恢复能力发生变化时
   按需发布。
 - 仅涉及 Electron 界面、图标或桌面打包的变化，只发布客户端即可，不需要同步发布 npm 新版本。
-- 两个渠道共享 Core 和版本来源，但不要求每次发布同时产生两种分发物。
+- 两个渠道共享 Core，但独立决定何时交付。npm 版本由 `package.json` 管理，当前公开桌面预览版由
+  `config/release.json` 管理；完整约束见[发布流程](../docs/release-process.md)。
 
 ## Codex 主题换装效果
 
@@ -216,6 +220,7 @@ Codex Skin 不会修改 `app.asar`、`ElectronAsarIntegrity`、应用签名、�
 bun install
 bun run test     # 运行测试
 bun run check    # 运行代码检查
+bun run ci       # 执行与仓库 CI 一致的完整门禁
 bun run build    # 构建界面与命令行程序
 bun run desktop  # 启动支持热更新的 Electron 开发环境
 bun run desktop:open # 生成并打开带正式名称和图标的 Codex Skin.app
@@ -261,11 +266,16 @@ public/backgrounds/sidebar/    # 侧边栏人物或布景
 bun run desktop:dist:preview
 ```
 
-产物输出到 `release/`。推送格式为 `desktop-v<版本>-preview.<序号>` 的标签后，GitHub
+当前公开桌面版本与 Preview 序号集中维护在 `config/release.json`。产物输出到 `release/`。推送
+格式为 `desktop-v<版本>-preview.<序号>` 的标签后，GitHub
 Actions 会重新执行代码检查与测试，构建并验证 DMG、ZIP 和 SHA-256 校验文件，然后创建 GitHub
-prerelease。工作流会将完整发布标签写入客户端，使更新检测可以区分同一基础版本下的 Preview
-序号。客户端不接入 Apple Developer ID 签名与公证，更新流程只负责检测、下载、SHA-256 校验和
-打开 DMG；Intel Mac 构建也尚未提供，因此当前产物仍是开发预览。
+prerelease，并根据上一个 Release 自动生成变更列表。工作流只接受 `main` 历史中的标签，并校验
+版本配置、README 下载地址和标签是否一致。完整发布契约见
+[发布流程](../docs/release-process.md)。
+
+工作流会将完整发布标签写入客户端，使更新检测可以区分同一基础版本下的 Preview 序号。客户端不
+接入 Apple Developer ID 签名与公证，更新流程只负责检测、下载、SHA-256 校验和打开 DMG；Intel
+Mac 构建也尚未提供，因此当前产物仍是开发预览。
 
 普通本机打包仍可使用：
 
@@ -294,6 +304,13 @@ bun run release
 
 该命令是 npm CLI 的发布流程：它会自动执行同一套发布前检查，然后更新版本号、创建发布提交与
 标签、推送到远端，并将编译后的 CLI 和设置页发布到 npm；它不会构建或上传桌面安装包。
+
+## 维护与反馈
+
+- 使用问题和兼容性边界见[支持说明](../SUPPORT.md)。
+- 可复现 Bug 请使用仓库 Issue 表单；不要在日志中提交令牌、个人路径、用户图片或其他隐私信息。
+- 漏洞或敏感安全问题请按照[安全策略](../SECURITY.md)使用 GitHub 私密漏洞报告。
+- 参与开发前请阅读[贡献指南](../CONTRIBUTING.md)，并在 Pull Request 前执行对应检查。
 
 ## 语言计划
 
