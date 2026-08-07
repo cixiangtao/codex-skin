@@ -57,7 +57,7 @@ bun run ci
 7. 同一工作流在合并提交上创建 `desktop-v<version>-preview.<number>` 标签和 prerelease。
 8. 检查 Release 标签、资产、校验值、Pages 下载入口和真实下载行为。
 
-手工标签和 workflow dispatch 都不是发布入口；工作流只接受已合并的桌面 Release PR。
+手工标签和 workflow dispatch 都不是桌面发布入口；工作流只接受已合并的桌面 Release PR。
 
 ## 发布 npm CLI
 
@@ -82,6 +82,9 @@ PR 目前需要维护者另行批准工作流。
 
 ## 恢复边界
 
+- npm 自动发版在远端步骤失败后，先核对已合并 Release Please PR、tag、GitHub Release 与 registry，
+  再从 `main` 手动运行 `release-npm.yml` 并填入该 PR 编号。恢复流程会重新验证准确的 PR、合并
+  commit、受限 diff、版本、祖先关系与现有 tag，然后只补齐缺失步骤。
 - 标签或 Release 创建失败时，先核对本地/远端标签和 Release 状态，避免重复创建。
 - npm 发布失败时，检查版本文件、暂存区、远端标签和 registry 状态，不假设发布工具已经完全回滚。
 - Pages、GitHub Release 和 npm 是独立交付面，任何一个成功都不代表其他交付面已经更新。
