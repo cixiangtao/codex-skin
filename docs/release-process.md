@@ -38,7 +38,8 @@ bun run ci
 
 - `Repository CI` 在 Pull Request 和 `main` push 上运行完整门禁。
 - `main` ruleset 必须要求通过 Pull Request 合入并通过 `Validate public products`；管理员也不能绕过。
-- Release PR 只允许修改当前交付面的版本、锁文件、发布配置和公开下载链接，不能夹带产品代码。
+- npm 发版 PR 由 Release Please 自动维护，只允许修改版本、Changelog 和自动化清单；桌面预览仍使用
+  独立的受限 Release PR，两个交付面都不能夹带产品代码。
 - 工作流中的外部 Action 使用完整提交 SHA；远端“Require actions to be pinned to a full-length
   commit SHA”同样应在这些工作流进入默认分支后启用。
 - Pages 工作流只拥有 `contents: read`、`pages: write` 和 `id-token: write`；桌面 Release 工作流
@@ -60,21 +61,24 @@ bun run ci
 
 ## 发布 npm CLI
 
-只有 Core、CLI、共享运行时、打包设置页或诊断恢复能力变化时才发布 npm：
+只有 Core、CLI、共享运行时、打包设置页或诊断恢复能力变化时才发布 npm。普通变更通过 PR 合入
+`main` 后，Release Please 会从 `release-please--branches--main--...` 分支持续更新自动发版 PR。
+Conventional Commit 或 squash merge 标题决定建议版本和 `CHANGELOG.md`：`fix` 为 patch，`feat`
+为 minor，`!` 或 `BREAKING CHANGE` 为 major。
 
-```bash
-git switch -c release/npm-v<version> main
-bun run release:check
-bun run release:prepare -- <version>
-```
-
-`release-it` 只更新版本和 `bun.lock` 并创建本地发布提交。将该分支推送后创建只包含
-`package.json` 与 `bun.lock` 的 Release PR；合入后，GitHub Actions 在合并提交上创建
-`v<version>` 标签，并通过 npm trusted publishing 发布。发布后必须独立核对 npm `latest`、包元数据、
-压缩包内容，并从仓库外的临时目录运行 CLI。npm 发布不会创建桌面安装包。
+维护者只需检查发版 PR 的受限 diff、版本、Changelog 和必需 CI，并在准备发布时合并。随后
+`release-npm.yml` 会反查这次合并，执行完整门禁和 npm 打包，在同一条 Actions 链路中创建
+`v<version>`、发布已检查的 npm 产物并创建 GitHub Release。普通 PR 合并不会发布；不要在本地升版本、
+打 tag 或运行 `npm publish`。发布后必须独立核对 GitHub Release、npm `latest`、包元数据、压缩包内容，
+并从仓库外的临时目录运行 CLI。npm 发布不会创建桌面安装包。
 
 首次使用该流程前，需要在 npm 包设置中将 trusted publisher 配置为 GitHub Actions、仓库
 `cixiangtao/codex-skin`、工作流 `release-npm.yml`，并允许 `npm publish`；仓库不保存长期 npm 发布令牌。
+
+仓库还需要配置 Actions variable `RELEASE_APP_CLIENT_ID` 和 secret
+`RELEASE_APP_PRIVATE_KEY`，对应一个已安装到本仓库、具有 Contents、Issues、Pull requests 读写权限的
+GitHub App。使用 App token 可让自动发版 PR 的必需 CI 无人值守运行；默认 `GITHUB_TOKEN` 创建的
+PR 目前需要维护者另行批准工作流。
 
 ## 恢复边界
 
