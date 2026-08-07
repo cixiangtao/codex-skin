@@ -3,9 +3,9 @@
   "git": {
     "commit": true,
     "commitMessage": "chore(release): v${version}",
-    "tag": true,
-    "tagName": "v${version}",
-    "push": true,
+    "requireBranch": "release/npm-v*",
+    "tag": false,
+    "push": false,
     "requireCleanWorkingDir": true
   },
   "github": {
@@ -16,11 +16,10 @@
   },
   "hooks": {
     "before:init": "bun run release:check",
-    "after:release": "echo Successfully released ${name} v${version}"
+    "after:bump": "bun install --lockfile-only && test \"$(git branch --show-current)\" = \"release/npm-v${version}\"",
+    "after:release": "echo Prepared release PR commit for ${name} v${version}"
   },
   "npm": {
-    "publish": true,
-    "publishArgs": ["--access", "public"],
-    "publishPackageManager": "npm"
+    "publish": false
   }
 }
