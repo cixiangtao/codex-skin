@@ -37,8 +37,8 @@ bun run ci
 ## 仓库策略
 
 - `Repository CI` 在 Pull Request 和 `main` push 上运行完整门禁。
-- `main` ruleset 应要求 `Validate public products` 检查通过。必须先让 CI 工作流进入默认分支，再绑定
-  必需检查，避免把首个配置提交锁在分支规则之外。
+- `main` ruleset 必须要求通过 Pull Request 合入并通过 `Validate public products`；管理员也不能绕过。
+- Release PR 只允许修改当前交付面的版本、锁文件、发布配置和公开下载链接，不能夹带产品代码。
 - 工作流中的外部 Action 使用完整提交 SHA；远端“Require actions to be pinned to a full-length
   commit SHA”同样应在这些工作流进入默认分支后启用。
 - Pages 工作流只拥有 `contents: read`、`pages: write` 和 `id-token: write`；桌面 Release 工作流
@@ -46,28 +46,35 @@ bun run ci
 
 ## 发布桌面预览
 
-1. 确认准备发布的提交已经进入 `main`。
-2. 更新 `config/release.json` 中的桌面版本和 Preview 序号。
-3. 同步 `.github/README.md` 中的公开下载链接。
-4. 执行 `bun run ci`。
-5. 创建并推送 `desktop-v<version>-preview.<number>` 标签。
-6. GitHub Actions 再次执行检查、构建并验证 DMG、ZIP 和 SHA-256。
-7. 工作流创建 prerelease，并由 GitHub 根据提交差异生成本次更新列表。
+1. 确认准备发布的产品提交均已通过普通 PR 进入 `main`。
+2. 从最新 `main` 创建 `release/desktop-v<version>-preview.<number>` 分支。
+3. 在该分支更新 `config/release.json`、必要时同步 `package.json` 与 `bun.lock`，并更新
+   `.github/README.md` 中的公开下载链接。
+4. 执行 `bun run ci`，然后创建只包含上述发布文件的 Release PR。
+5. Release PR 通过 `Validate public products` 后合入 `main`。
+6. GitHub Actions 反查该合并 PR、验证受限 diff，再构建并验证 DMG、ZIP 和 SHA-256。
+7. 同一工作流在合并提交上创建 `desktop-v<version>-preview.<number>` 标签和 prerelease。
 8. 检查 Release 标签、资产、校验值、Pages 下载入口和真实下载行为。
 
-工作流会拒绝不在 `main` 历史中的标签，也会拒绝与发布契约不一致的版本。
+手工标签和 workflow dispatch 都不是发布入口；工作流只接受已合并的桌面 Release PR。
 
 ## 发布 npm CLI
 
 只有 Core、CLI、共享运行时、打包设置页或诊断恢复能力变化时才发布 npm：
 
 ```bash
+git switch -c release/npm-v<version> main
 bun run release:check
-bun run release
+bun run release:prepare -- <version>
 ```
 
-`release-it` 负责版本提交、`v<version>` 标签、推送和 npm 发布。发布后必须独立核对 npm
-`latest`、包元数据、压缩包内容，并从仓库外的临时目录运行 CLI。npm 发布不会创建桌面安装包。
+`release-it` 只更新版本和 `bun.lock` 并创建本地发布提交。将该分支推送后创建只包含
+`package.json` 与 `bun.lock` 的 Release PR；合入后，GitHub Actions 在合并提交上创建
+`v<version>` 标签，并通过 npm trusted publishing 发布。发布后必须独立核对 npm `latest`、包元数据、
+压缩包内容，并从仓库外的临时目录运行 CLI。npm 发布不会创建桌面安装包。
+
+首次使用该流程前，需要在 npm 包设置中将 trusted publisher 配置为 GitHub Actions、仓库
+`cixiangtao/codex-skin`、工作流 `release-npm.yml`，并允许 `npm publish`；仓库不保存长期 npm 发布令牌。
 
 ## 恢复边界
 
