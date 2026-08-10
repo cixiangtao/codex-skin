@@ -1,9 +1,11 @@
-# 内置背景素材目录
+# Built-in background assets
 
-将图片按使用模块放入对应目录，设置页会根据目录内容自动生成下拉列表：
+English | [简体中文](README.zh-CN.md)
 
-- `wallpaper/`：全局背景
-- `main/`：主面板人物或布景
-- `sidebar/`：侧边栏人物或布景
+Place images in the directory for the surface that uses them. The settings UI discovers directory contents and generates its options automatically.
 
-支持 PNG、JPEG、WebP、GIF 和 AVIF。文件名去掉扩展名后会作为下拉选项名称，短横线和下划线会显示为空格。添加或删除素材后，开发环境刷新设置页即可看到最新列表；发布版本需要重新构建。
+- `wallpaper/`: global window backgrounds
+- `main/`: main-panel characters and scenes
+- `sidebar/`: sidebar characters and scenes
+
+Supported formats are PNG, JPEG, WebP, GIF, and AVIF. The filename without its extension becomes the option label; hyphens and underscores are displayed as spaces. Refresh the settings UI after adding or removing an asset in development. Packaged releases require a rebuild.
