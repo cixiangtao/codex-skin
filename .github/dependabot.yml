@@ -10,9 +10,29 @@ updates:
       default-days: 14
     open-pull-requests-limit: 2
     groups:
-      routine-updates:
+      runtime-updates:
         patterns:
-          - "*"
+          - clsx
+          - picocolors
+          - react
+          - react-dom
+          - tailwind-merge
+        update-types:
+          - minor
+          - patch
+      toolchain-updates:
+        patterns:
+          - "@babel/*"
+          - "@tailwindcss/*"
+          - "@types/*"
+          - "@vitejs/*"
+          - electron
+          - electron-builder
+          - oxlint
+          - tailwindcss
+          - typescript
+          - vite
+          - vitest
         update-types:
           - minor
           - patch
@@ -20,6 +40,18 @@ updates:
       - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
+      - dependency-name: "@locator/babel-jsx"
+        update-types:
+          - "version-update:semver-minor"
+      - dependency-name: "@rolldown/plugin-babel"
+        update-types:
+          - "version-update:semver-minor"
+      - dependency-name: electron-vite
+        update-types:
+          - "version-update:semver-minor"
+      - dependency-name: oxfmt
+        update-types:
+          - "version-update:semver-minor"
     commit-message:
       prefix: "build(deps)"
 
