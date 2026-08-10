@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/cixiangtao/codex-skin/compare/v1.2.0...v1.2.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **deps:** keep risky upgrades manual ([#20](https://github.com/cixiangtao/codex-skin/issues/20)) ([4cdcb6f](https://github.com/cixiangtao/codex-skin/commit/4cdcb6f28d7179619e29d90053dba33bf9e8b2b7))
+
 ## [1.2.0](https://github.com/cixiangtao/codex-skin/compare/v1.1.2...v1.2.0) (2026-08-07)
 
 
