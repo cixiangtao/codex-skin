@@ -1,20 +1,19 @@
 # Codex Skin
 
-## [查看完整文档、客户端下载与安全说明 →](https://github.com/cixiangtao/codex-skin#readme)
+English | [简体中文](README.zh-CN.md)
 
-> npm 包只提供面向自动化、开发调试和故障恢复的 CLI。普通用户请通过完整文档下载 macOS
-> 客户端。版本、下载地址和平台限制始终以 GitHub 仓库为准。
+## [Full documentation, desktop downloads, and security notes →](https://github.com/cixiangtao/codex-skin#readme)
 
-## 效果预览
+The npm package is a compact CLI for automation, development, diagnostics, and recovery. The packaged macOS client is the product entry point for ordinary users. Current versions, download links, and platform limitations are maintained in the GitHub documentation.
 
-| 浅色主题                                                                                                                                                                      | 深色主题                                                                                                                                                             |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ![Codex Skin 浅色主题换装效果：全局壁纸、主面板人物与侧边栏布景](https://raw.githubusercontent.com/cixiangtao/codex-skin/main/docs/images/codex-skin-light-theme-preview.jpg) | ![Codex Skin 深色主题换装效果：Codex 全局背景与透明界面](https://raw.githubusercontent.com/cixiangtao/codex-skin/main/docs/images/codex-skin-dark-theme-preview.jpg) |
+## Preview
 
-| 自定义壁纸                                                                                                                                        | 动漫主题                                                                                                                                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| ![Codex Skin 自定义壁纸主题效果](https://raw.githubusercontent.com/cixiangtao/codex-skin/main/docs/images/codex-skin-wallpaper-theme-preview.jpg) | ![Codex Skin 动漫主题换装效果](https://raw.githubusercontent.com/cixiangtao/codex-skin/main/docs/images/codex-skin-anime-theme-preview.jpg) |
+| Light theme                                                                                                                                                                                             | Dark theme                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Codex Skin light theme with a window wallpaper, main-panel character, and sidebar scene](https://raw.githubusercontent.com/cixiangtao/codex-skin/main/docs/images/codex-skin-light-theme-preview.jpg) | ![Codex Skin dark theme with a global background and translucent interface](https://raw.githubusercontent.com/cixiangtao/codex-skin/main/docs/images/codex-skin-dark-theme-preview.jpg) |
 
-### 可视化主题设置
+| Custom wallpaper                                                                                                                                | Anime theme                                                                                                                            |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Codex Skin custom wallpaper](https://raw.githubusercontent.com/cixiangtao/codex-skin/main/docs/images/codex-skin-wallpaper-theme-preview.jpg) | ![Codex Skin anime theme](https://raw.githubusercontent.com/cixiangtao/codex-skin/main/docs/images/codex-skin-anime-theme-preview.jpg) |
 
-![Codex Skin 可视化主题设置页，可配置全局背景、主面板和侧边栏](https://raw.githubusercontent.com/cixiangtao/codex-skin/main/docs/images/codex-skin-settings.png)
+![Codex Skin visual settings for global, main-panel, and sidebar layers](https://raw.githubusercontent.com/cixiangtao/codex-skin/main/docs/images/codex-skin-settings.png)

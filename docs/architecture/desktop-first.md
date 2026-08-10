@@ -1,35 +1,35 @@
-# 桌面客户端优先决策
+# Desktop-first architecture decision
 
-状态：已采纳
-日期：2026-07-27
+English | [简体中文](desktop-first.zh-CN.md)
 
-## 决策
+Status: accepted
+Date: 2026-07-27
 
-Codex Skin 的正式产品入口是 macOS 桌面客户端。普通用户通过客户端完成安装、主题设置和日常
-运行，不需要安装 Node.js、Bun 或使用终端。
+## Decision
 
-CLI 继续保留，但不作为面向普通用户的产品入口。它只承担以下职责：
+The macOS desktop client is the formal Codex Skin product entry point. Ordinary users install, configure, and run themes through the client without installing Node.js or Bun or using a terminal.
 
-- 自动化测试与持续集成
-- 核心能力和启动流程的开发调试
-- 无图形界面环境下的诊断与恢复
-- 客户端无法启动或状态异常时的兜底入口
+The CLI remains available, but only for:
 
-## 架构边界
+- automated tests and continuous integration;
+- Core and startup-flow development;
+- diagnostics and recovery in headless environments;
+- fallback recovery when the client cannot start or its state is unhealthy.
 
-- Core 是配置、启动、注入、同步、验证和状态判断的唯一实现。
-- Electron 与 CLI 只是不同的宿主适配器，不得复制 Core 业务逻辑。
-- 新能力必须先加入 Core，再由需要它的入口调用。
-- CLI 保持精简和向后兼容，不为其单独设计普通用户交互。
-- 用户文档、发布说明、问题引导和安装流程默认以客户端为准。
+## Architecture boundary
 
-## 发布边界
+- Core is the single implementation of configuration, launch, injection, synchronization, verification, and state decisions.
+- Electron and the CLI are host adapters and must not duplicate Core business logic.
+- New behavior enters Core before an entry point consumes it.
+- The CLI stays compact and backward compatible; it does not receive a separate ordinary-user interaction model.
+- User documentation, release notes, issue guidance, and installation flows default to the desktop client.
 
-- 客户端安装包是面向普通用户的主要分发物。
-- npm CLI 是开发与支持工具，可独立发布，但不作为默认安装建议。
-- 客户端未完成签名、公证或目标架构构建时，必须明确标记为开发预览，不能描述为已完成公开发布。
+## Delivery boundary
 
-## 重新评估条件
+- Desktop artifacts are the main ordinary-user distribution.
+- The npm CLI is a separately releasable development and support tool, not the default installation recommendation.
+- A client without signing, notarization, or the target architecture build must be labeled as a development preview, not a completed public release.
 
-只有当自动化、开发调试、无界面排障和客户端兜底均有等价替代方案，并确认不存在实际 CLI
-使用需求时，才考虑废弃 CLI。
+## Reconsideration
+
+Deprecate the CLI only after automation, development, headless diagnostics, and client fallback each have an equivalent replacement and there is no demonstrated CLI usage requirement.

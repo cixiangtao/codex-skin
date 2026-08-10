@@ -1,90 +1,67 @@
-# 发布流程
+# Release process
 
-Codex Skin 有三个独立交付面：macOS 桌面客户端、npm CLI 和 GitHub Pages 项目主页。它们共享源码，
-但不要求每次同时发布。
+English | [简体中文](release-process.zh-CN.md)
 
-## 版本来源
+Codex Skin has three independent delivery surfaces: the macOS desktop client, npm CLI, and GitHub Pages site. They share source but do not need to ship together.
 
-- npm CLI 版本由根目录 `package.json` 的 `version` 管理，使用 `v<version>` 标签。
-- 当前公开桌面预览版由 `config/release.json` 管理，使用
-  `desktop-v<version>-preview.<number>` 标签。
-- 桌面构建仍使用 `package.json` 生成应用包版本。创建桌面发布标签前，发布契约会要求
-  `package.json` 与 `config/release.json` 的版本一致。
-- Pages 没有独立版本号，始终展示 `config/release.json` 指向的当前公开桌面版本。
+## Version sources
 
-这样 npm 可以独立升版而不改变网站上的桌面下载地址；准备新的桌面预览时，再更新桌面版本配置和
-文档链接。
+- npm CLI: `package.json`, tag `v<version>`
+- Desktop preview: `config/release.json`, tag `desktop-v<version>-preview.<number>`
+- Pages: no independent version; it presents the desktop version from `config/release.json`
 
-## 变更与发布渠道
+Desktop packaging still reads `package.json`, so the release contract requires its version to match `config/release.json` before a desktop tag is created. npm can otherwise release independently without changing the site download.
 
-| 变更范围                          | 桌面 Release | npm CLI           | Pages      |
-| --------------------------------- | ------------ | ----------------- | ---------- |
-| Electron 主进程、图标、桌面打包   | 需要         | 不需要            | 按文案需要 |
-| Core、CLI、共享运行时、打包设置页 | 需要时发布   | 需要              | 按文案需要 |
-| 项目主页                          | 不需要       | 不需要            | 需要       |
-| 纯文档                            | 按链接变化   | 下一次 npm 包携带 | 按页面变化 |
+## Delivery matrix
 
-## 本地门禁
+| Change                                         | Desktop Release   | npm CLI            | Pages                 |
+| ---------------------------------------------- | ----------------- | ------------------ | --------------------- |
+| Electron process, icons, packaging             | Required          | No                 | When copy changes     |
+| Core, CLI, shared runtime, bundled settings UI | As needed         | Required           | When copy changes     |
+| Project site                                   | No                | No                 | Required              |
+| Documentation only                             | When links change | Included next time | When the site changes |
+
+## Local gate
 
 ```bash
 bun install --frozen-lockfile
 bun run ci
 ```
 
-`bun run ci` 会按顺序执行格式、lint、类型、测试、发布契约、npm 打包预检、Electron 构建和 Pages
-构建。会清理或复用相同输出目录的任务保持串行。
+`bun run ci` runs formatting, linting, types, tests, release-contract checks, npm pack verification, Electron build, and Pages build in a safe sequence.
 
-## 仓库策略
+## Repository policy
 
-- `Repository CI` 在 Pull Request 和 `main` push 上运行完整门禁。
-- `main` ruleset 必须要求通过 Pull Request 合入并通过 `Validate public products`；管理员也不能绕过。
-- npm 发版 PR 由 Release Please 自动维护，只允许修改版本、Changelog 和自动化清单；桌面预览仍使用
-  独立的受限 Release PR，两个交付面都不能夹带产品代码。
-- 工作流中的外部 Action 使用完整提交 SHA；远端“Require actions to be pinned to a full-length
-  commit SHA”同样应在这些工作流进入默认分支后启用。
-- Pages 工作流只拥有 `contents: read`、`pages: write` 和 `id-token: write`；桌面 Release 工作流
-  只在标签触发时拥有 `contents: write`。
+- `Repository CI` runs for pull requests and pushes to `main`.
+- The protected `main` branch requires pull requests and `Validate public products`; administrators cannot bypass the rule.
+- Release Please owns the constrained npm release PR. Desktop previews use a separate constrained release PR.
+- Third-party Actions are pinned to full commit SHAs.
+- Pages has only `contents: read`, `pages: write`, and `id-token: write`; desktop release receives `contents: write` only on tag execution.
 
-## 发布桌面预览
+## Desktop preview
 
-1. 确认准备发布的产品提交均已通过普通 PR 进入 `main`。
-2. 从最新 `main` 创建 `release/desktop-v<version>-preview.<number>` 分支。
-3. 在该分支更新 `config/release.json`、必要时同步 `package.json` 与 `bun.lock`，并更新
-   `.github/README.md` 中的公开下载链接。
-4. 执行 `bun run ci`，然后创建只包含上述发布文件的 Release PR。
-5. Release PR 通过 `Validate public products` 后合入 `main`。
-6. GitHub Actions 反查该合并 PR、验证受限 diff，再构建并验证 DMG、ZIP 和 SHA-256。
-7. 同一工作流在合并提交上创建 `desktop-v<version>-preview.<number>` 标签和 prerelease。
-8. 检查 Release 标签、资产、校验值、Pages 下载入口和真实下载行为。
+1. Merge product changes through ordinary pull requests into `main`.
+2. Create `release/desktop-v<version>-preview.<number>` from current `main`.
+3. Update `config/release.json`, align `package.json` and `bun.lock` when required, and update public download links in `.github/README.md`.
+4. Run `bun run ci` and open a release PR containing only approved release files.
+5. Merge after `Validate public products` passes.
+6. GitHub Actions verifies the merged PR and constrained diff, then builds and verifies the DMG, ZIP, and SHA-256 file.
+7. The same workflow creates the desktop tag on the merge commit and publishes a prerelease.
+8. Verify the tag, assets, checksum, Pages link, and real download behavior.
 
-手工标签和 workflow dispatch 都不是桌面发布入口；工作流只接受已合并的桌面 Release PR。
+Manual tags and workflow dispatch are not desktop release entry points.
 
-## 发布 npm CLI
+## npm CLI
 
-只有 Core、CLI、共享运行时、打包设置页或诊断恢复能力变化时才发布 npm。普通变更通过 PR 合入
-`main` 后，Release Please 会从 `release-please--branches--main--...` 分支持续更新自动发版 PR。
-Conventional Commit 或 squash merge 标题决定建议版本和 `CHANGELOG.md`：`fix` 为 patch，`feat`
-为 minor，`!` 或 `BREAKING CHANGE` 为 major。
+Release Please maintains one PR from `release-please--branches--main--...`; Conventional Commit or squash-merge titles determine SemVer and `CHANGELOG.md`. Maintainers review the constrained diff, version, changelog, and required CI, then merge when ready. `release-npm.yml` verifies the exact merge, runs the complete gate and package inspection, creates `v<version>`, publishes through npm trusted publishing, and creates the GitHub Release.
 
-维护者只需检查发版 PR 的受限 diff、版本、Changelog 和必需 CI，并在准备发布时合并。随后
-`release-npm.yml` 会反查这次合并，执行完整门禁和 npm 打包，在同一条 Actions 链路中创建
-`v<version>`、发布已检查的 npm 产物并创建 GitHub Release。普通 PR 合并不会发布；不要在本地升版本、
-打 tag 或运行 `npm publish`。发布后必须独立核对 GitHub Release、npm `latest`、包元数据、压缩包内容，
-并从仓库外的临时目录运行 CLI。npm 发布不会创建桌面安装包。
+Do not bump versions, create release tags, or run `npm publish` locally. Configure npm trusted publishing for `cixiangtao/codex-skin` and `release-npm.yml`, and provide `RELEASE_APP_CLIENT_ID` plus `RELEASE_APP_PRIVATE_KEY` for the installed GitHub App that maintains release PRs.
 
-首次使用该流程前，需要在 npm 包设置中将 trusted publisher 配置为 GitHub Actions、仓库
-`cixiangtao/codex-skin`、工作流 `release-npm.yml`，并允许 `npm publish`；仓库不保存长期 npm 发布令牌。
+After publication, compare the GitHub Release, npm `latest`, metadata, tarball contents, and a fresh CLI execution outside the repository.
 
-仓库还需要配置 Actions variable `RELEASE_APP_CLIENT_ID` 和 secret
-`RELEASE_APP_PRIVATE_KEY`，对应一个已安装到本仓库、具有 Contents、Issues、Pull requests 读写权限的
-GitHub App。使用 App token 可让自动发版 PR 的必需 CI 无人值守运行；默认 `GITHUB_TOKEN` 创建的
-PR 目前需要维护者另行批准工作流。
+## Recovery
 
-## 恢复边界
-
-- npm 自动发版在远端步骤失败后，先核对已合并 Release Please PR、tag、GitHub Release 与 registry，
-  再从 `main` 手动运行 `release-npm.yml` 并填入该 PR 编号。恢复流程会重新验证准确的 PR、合并
-  commit、受限 diff、版本、祖先关系与现有 tag，然后只补齐缺失步骤。
-- 标签或 Release 创建失败时，先核对本地/远端标签和 Release 状态，避免重复创建。
-- npm 发布失败时，检查版本文件、暂存区、远端标签和 registry 状态，不假设发布工具已经完全回滚。
-- Pages、GitHub Release 和 npm 是独立交付面，任何一个成功都不代表其他交付面已经更新。
+- For a failed npm automation run, compare the merged release PR, tag, GitHub Release, and registry before dispatching the recovery path with the exact PR number.
+- Before retrying tag or Release creation, inspect local and remote tag state.
+- After npm failure, inspect version files, the index, remote tags, and registry rather than assuming rollback.
+- Pages, GitHub Releases, desktop artifacts, and npm are independent states; report each separately.
