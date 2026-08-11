@@ -2,8 +2,13 @@
 
 [English](CONTRIBUTING.md) | 简体中文
 
-感谢你愿意改进 Codex Skin。项目当前以 macOS 桌面客户端为主要产品入口，npm CLI 只承担自动化、
-开发调试和故障恢复职责。新增能力应先进入共享 Core，再由 Electron 或 CLI 调用。
+Codex Skin 已进入维护模式。开始改动前请先阅读[项目状态](MAINTENANCE.zh-CN.md)。本仓库只接受
+关键安全、恢复能力、范围明确的兼容性、文档和迁移改进。新产品功能、跨平台移植、主题包协议和主题
+市场不再在这里继续建设；相关贡献请优先考虑提交到
+[Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
+
+在上述维护边界内，项目仍以 macOS 桌面客户端为主要产品入口，npm CLI 只承担自动化、开发调试和
+故障恢复职责。共享行为应先进入 Core，再由 Electron 或 CLI 调用。
 
 ## 开发环境
 

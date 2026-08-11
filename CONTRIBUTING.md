@@ -2,7 +2,9 @@
 
 English | [简体中文](CONTRIBUTING.zh-CN.md)
 
-Codex Skin is desktop-first. The Electron client is the user-facing product; the npm CLI is an automation, diagnostics, and recovery adapter. Shared behavior belongs in Core before either entry point calls it.
+Codex Skin is in maintenance mode. Read the [project status](MAINTENANCE.md) before starting work. Contributions are limited to critical security, recovery, narrowly scoped compatibility, documentation, and transition improvements. New product features, cross-platform ports, theme protocols, and marketplace work are not accepted here; consider contributing them to [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin).
+
+Within that maintenance boundary, Codex Skin remains desktop-first. The Electron client is the user-facing product; the npm CLI is an automation, diagnostics, and recovery adapter. Shared behavior belongs in Core before either entry point calls it.
 
 ## Environment
 

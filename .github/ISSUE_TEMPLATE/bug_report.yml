@@ -1,5 +1,5 @@
-name: Bug 报告
-description: 报告可以稳定复现的客户端、CLI 或项目主页问题
+name: 维护范围 Bug 报告
+description: 报告关键安全、恢复能力或范围明确且可以稳定复现的兼容性问题
 title: "[Bug] "
 body:
   - type: dropdown
@@ -66,6 +66,8 @@ body:
     attributes:
       label: 提交前确认
       options:
+        - label: 我已阅读项目维护状态，确认问题属于当前支持范围。
+          required: true
         - label: 我已经搜索过现有 Issue，没有找到相同问题。
           required: true
         - label: 这不是安全漏洞；安全问题会通过私密漏洞报告提交。

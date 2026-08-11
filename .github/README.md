@@ -2,9 +2,15 @@
 
 English | [简体中文](README.zh-CN.md)
 
+> [!IMPORTANT]
+> Codex Skin entered maintenance mode on August 11, 2026. Existing releases remain available, but
+> this repository is no longer pursuing a parallel feature roadmap. New theme work will be
+> considered for the [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) community
+> first. Read the [project status and transition notes](../MAINTENANCE.md).
+
 Codex Skin is an open-source macOS companion for giving the Codex desktop app a personal visual theme without modifying or re-signing `ChatGPT.app`. Its desktop client controls a global wallpaper, separate main-panel and sidebar scenes, transparency, positioning, soft edges, and an animated menu-bar icon.
 
-[Project site](https://cixiangtao.github.io/codex-skin/) · [Apple Silicon preview](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg) · [Releases](https://github.com/cixiangtao/codex-skin/releases/tag/desktop-v1.1.2-preview.3) · [npm CLI](https://www.npmjs.com/package/codex-skin) · [Contributing](../CONTRIBUTING.md) · [Support](../SUPPORT.md) · [Security](../SECURITY.md)
+[Project status](../MAINTENANCE.md) · [Historical project site](https://cixiangtao.github.io/codex-skin/) · [Existing Apple Silicon preview](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg) · [Releases](https://github.com/cixiangtao/codex-skin/releases/tag/desktop-v1.1.2-preview.3) · [npm CLI](https://www.npmjs.com/package/codex-skin) · [Support](../SUPPORT.md) · [Security](../SECURITY.md)
 
 > [!IMPORTANT]
 > Codex Skin currently supports Apple Silicon macOS and requires the Codex desktop app. The packaged client is the normal user entry point and includes its runtime. The CLI exists for development, automation, headless diagnostics, and recovery.
@@ -42,7 +48,11 @@ The rationale and maintenance rules are in [Desktop-first architecture](../docs/
 - Applies settings immediately to connected Codex windows and automatically handles new windows.
 - Includes environment diagnostics, effect verification, reload recovery tests, and command-line configuration.
 
-## Install the desktop preview
+## Existing desktop preview
+
+New users should evaluate [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin)
+before adopting this maintenance-only preview. The existing Codex Skin build remains available for
+people who specifically need its three-layer scene model:
 
 1. Download [Codex-Skin-1.1.2-arm64.dmg](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg).
 2. Open the DMG and drag `Codex Skin.app` to Applications.
@@ -120,15 +130,15 @@ Built-in assets are discovered under `public/backgrounds/wallpaper/`, `public/ba
 
 ## Delivery
 
-- GitHub Pages presents the product, previews, and desktop download.
-- GitHub Releases publishes the Apple Silicon desktop preview.
-- npm publishes the CLI only when Core, CLI, shared runtime, diagnostics, or recovery behavior changes.
+- GitHub Pages, existing Releases, and the npm CLI remain available as historical and maintenance surfaces.
+- Routine feature releases are no longer planned.
+- A new release may be made only when a critical security, recovery, or narrowly scoped compatibility fix requires one.
 
 The desktop preview uses `desktop-v<version>-preview.<number>` and `config/release.json`. The npm CLI uses `v<version>` and `package.json`. Each channel has a constrained, Actions-owned release path. See the [release process](../docs/release-process.md).
 
 ## Community
 
-Read [Support](../SUPPORT.md) for compatibility boundaries, use the issue forms for reproducible bugs, report sensitive vulnerabilities through [Security](../SECURITY.md), and run the relevant checks before opening a pull request described in [Contributing](../CONTRIBUTING.md).
+Read [Support](../SUPPORT.md) before reporting a reproducible maintenance-scope bug. Report sensitive vulnerabilities through [Security](../SECURITY.md). New product features and theme-ecosystem work are out of scope here; future contributions from this maintainer will be considered for [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) first.
 
 Codex Skin is an unofficial open-source project and is not affiliated with OpenAI.
 

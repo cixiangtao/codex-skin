@@ -2,6 +2,11 @@
 
 [English](README.md) | 简体中文
 
+> [!IMPORTANT]
+> 本项目自 2026 年 8 月 11 日起进入维护模式。现有 npm 版本继续保留，但不再规划新功能。新用户请先
+> 阅读[项目状态](https://github.com/cixiangtao/codex-skin/blob/main/MAINTENANCE.zh-CN.md)，并评估仍在持续开发的
+> [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) 生态。
+
 ## [查看完整文档、客户端下载与安全说明 →](https://github.com/cixiangtao/codex-skin#readme)
 
 > npm 包只提供面向自动化、开发调试和故障恢复的 CLI。普通用户请通过完整文档下载 macOS

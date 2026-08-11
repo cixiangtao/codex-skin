@@ -2,15 +2,22 @@
 
 [English](README.md) | 简体中文
 
+> [!IMPORTANT]
+> Codex Skin 自 2026 年 8 月 11 日起进入维护模式。现有版本继续保留，但本仓库不再规划一条平行的
+> 功能扩张路线。后续主题相关工作会优先考虑参与
+> [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) 社区。详细说明见
+> [项目状态与迁移说明](../MAINTENANCE.zh-CN.md)。
+
 Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面美化工具。无需修改或重新签名 `ChatGPT.app`，即可通过可视化设置为 Codex 添加全局壁纸、主面板人物布景、侧边栏装饰和像素动画菜单栏图标，自由打造浅色、深色、二次元等个性化 Codex 主题。
 
-[访问项目主页](https://cixiangtao.github.io/codex-skin/) ·
-[下载 Apple Silicon 预览版](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg) ·
+[项目状态](../MAINTENANCE.zh-CN.md) ·
+[历史项目主页](https://cixiangtao.github.io/codex-skin/) ·
+[现有 Apple Silicon 预览版](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg) ·
 [查看 Releases](https://github.com/cixiangtao/codex-skin/releases/tag/desktop-v1.1.2-preview.3) ·
 [查看 npm CLI](https://www.npmjs.com/package/codex-skin) ·
-[参与贡献](../CONTRIBUTING.md) ·
-[获取帮助](../SUPPORT.md) ·
-[安全策略](../SECURITY.md)
+[参与贡献](../CONTRIBUTING.zh-CN.md) ·
+[获取帮助](../SUPPORT.zh-CN.md) ·
+[安全策略](../SECURITY.zh-CN.md)
 
 > [!IMPORTANT]
 > Codex Skin 目前仅支持 macOS，并需要已安装 Codex 桌面端。面向普通用户的正式入口是
@@ -48,6 +55,9 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 - 两个渠道共享 Core，但独立决定何时交付。npm 版本由 `package.json` 管理，当前公开桌面预览版由
   `config/release.json` 管理；完整约束见[发布流程](../docs/release-process.md)。
 
+项目进入维护模式后不再安排常规功能发布。只有关键安全、恢复能力或范围明确的兼容性修复确实需要
+新版本时，才会通过现有 Actions 发布链交付。
+
 ## Codex 主题换装效果
 
 | 浅色主题                                                                                                            | 深色主题                                                                                                   |
@@ -77,9 +87,11 @@ Codex Skin 是一款面向 macOS Codex 桌面端的开源主题换装与界面�
 - 设置保存后立即同步到已连接的 Codex 窗口，新窗口也会自动应用
 - 提供环境诊断、效果验证、重载恢复验证和命令行配置能力
 
-## 快速开始
+## 现有桌面预览版
 
-普通用户直接下载已打包的 Apple Silicon 客户端，不需要安装 Node.js、Bun 或项目依赖：
+新用户应先评估仍在持续开发的
+[Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。如果确实需要 Codex Skin
+的三层独立布景模型，现有 Apple Silicon 预览版仍可下载，不需要安装 Node.js、Bun 或项目依赖：
 
 1. 下载 [Codex-Skin-1.1.2-arm64.dmg](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg)。
 2. 打开 DMG，将 `Codex Skin.app` 拖入“应用程序”文件夹。
@@ -309,10 +321,15 @@ bun run release
 
 ## 维护与反馈
 
-- 使用问题和兼容性边界见[支持说明](../SUPPORT.md)。
+提交问题前请先阅读[项目状态](../MAINTENANCE.zh-CN.md)和[支持范围](../SUPPORT.zh-CN.md)。本仓库只
+考虑维护范围内、可以稳定复现的问题；新产品功能和主题生态建设不再属于本项目范围。维护者后续的
+相关贡献会优先考虑提交到 [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin)
+社区。
+
+- 使用问题和兼容性边界见[支持说明](../SUPPORT.zh-CN.md)。
 - 可复现 Bug 请使用仓库 Issue 表单；不要在日志中提交令牌、个人路径、用户图片或其他隐私信息。
-- 漏洞或敏感安全问题请按照[安全策略](../SECURITY.md)使用 GitHub 私密漏洞报告。
-- 参与开发前请阅读[贡献指南](../CONTRIBUTING.md)，并在 Pull Request 前执行对应检查。
+- 漏洞或敏感安全问题请按照[安全策略](../SECURITY.zh-CN.md)使用 GitHub 私密漏洞报告。
+- 参与开发前请阅读[贡献指南](../CONTRIBUTING.zh-CN.md)，并在 Pull Request 前执行对应检查。
 
 ## 开源协议
 

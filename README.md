@@ -2,6 +2,11 @@
 
 English | [简体中文](README.zh-CN.md)
 
+> [!IMPORTANT]
+> Maintenance mode since August 11, 2026. Existing package versions remain available, but no new
+> feature roadmap is planned. See the [project status](https://github.com/cixiangtao/codex-skin/blob/main/MAINTENANCE.md) and evaluate the actively
+> developed [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) ecosystem for new use.
+
 ## [Full documentation, desktop downloads, and security notes →](https://github.com/cixiangtao/codex-skin#readme)
 
 The npm package is a compact CLI for automation, development, diagnostics, and recovery. The packaged macOS client is the product entry point for ordinary users. Current versions, download links, and platform limitations are maintained in the GitHub documentation.

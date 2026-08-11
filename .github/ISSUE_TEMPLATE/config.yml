@@ -1,5 +1,11 @@
 blank_issues_enabled: false
 contact_links:
+  - name: 项目维护状态
+    url: https://github.com/cixiangtao/codex-skin/blob/main/MAINTENANCE.zh-CN.md
+    about: 了解当前支持范围、停止并迁移现有运行时的步骤。
+  - name: Codex Dream Skin 活跃生态
+    url: https://github.com/Fei-Away/Codex-Dream-Skin
+    about: 新主题功能、跨平台能力和社区主题请前往活跃项目。
   - name: 使用帮助
     url: https://github.com/cixiangtao/codex-skin/blob/main/SUPPORT.md
     about: 提交问题前先查看支持范围和信息要求。
