@@ -122,7 +122,9 @@ export function buildInjectionExpression(css: string) {
 export function buildVerificationExpression(css: string) {
   const serializedId = serializeForJavaScript(BACKGROUND_STYLE_ID)
   const serializedHash = serializeForJavaScript(backgroundCssHash(css))
-  const expectedMain = css.includes(".app-shell-main-content-viewport::before")
+  const expectedMain =
+    css.includes("[data-app-shell-main-surface]::before") ||
+    css.includes(".app-shell-main-content-viewport::before")
   const expectedSidebar = css.includes(".app-shell-left-panel::before")
   const expectedWallpaper = css.includes(':root[data-codex-window-type="electron"] body')
   return `(() => {
@@ -143,11 +145,14 @@ export function buildVerificationExpression(css: string) {
       };
     };
     const surfaces = {
-      main: inspectSurface('.app-shell-main-content-viewport', ${expectedMain}),
+      main: inspectSurface(
+        '[data-app-shell-main-surface], .app-shell-main-content-viewport',
+        ${expectedMain},
+      ),
       sidebar: inspectSurface('.app-shell-left-panel', ${expectedSidebar}),
     };
     const bodyBackgroundImage = getComputedStyle(document.body).backgroundImage;
-    const mainSurface = document.querySelector('.main-surface');
+    const mainSurface = document.querySelector('[data-app-shell-main-surface], .main-surface');
     const mainSurfaceBackground = mainSurface ? getComputedStyle(mainSurface).backgroundColor : '';
     const surfaceVariable = getComputedStyle(document.documentElement)
       .getPropertyValue('--color-token-main-surface-primary').trim();

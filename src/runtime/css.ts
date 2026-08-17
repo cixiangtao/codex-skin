@@ -39,7 +39,10 @@ export async function imageFileToDataUrl(imagePath: string) {
 }
 
 const SURFACE_SELECTORS = {
-  main: [':root[data-codex-window-type="electron"] .app-shell-main-content-viewport'],
+  main: [
+    ':root[data-codex-window-type="electron"] [data-app-shell-main-surface]',
+    ':root[data-codex-window-type="electron"] .app-shell-main-content-viewport',
+  ],
   sidebar: [':root[data-codex-window-type="electron"] .app-shell-left-panel'],
 } as const satisfies Record<BackgroundSurface, readonly string[]>
 
@@ -83,6 +86,10 @@ function wallpaperCss(config: WallpaperConfig, dataUrl: string) {
   background-repeat: no-repeat !important;
   background-size: ${config.fit} !important;
   background-attachment: fixed !important;
+}
+
+:root[data-codex-window-type="electron"] [data-app-shell-main-surface] {
+  background-color: var(--color-token-main-surface-primary) !important;
 }
 
 :root[data-codex-window-type="electron"] .app-shell-left-panel::after,

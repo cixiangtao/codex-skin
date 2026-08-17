@@ -25,11 +25,12 @@ test("buildInjectionExpression is idempotent and preserves arbitrary CSS", () =>
 
 test("buildVerificationExpression checks the exact applied CSS", () => {
   const css =
-    ".app-shell-main-content-viewport::before, .app-shell-left-panel::before { content: ''; }"
+    "[data-app-shell-main-surface]::before, .app-shell-left-panel::before { content: ''; }"
   const expression = buildVerificationExpression(css)
   assert.match(expression, new RegExp(backgroundCssHash(css)))
   assert.match(expression, /backgroundImage/)
   assert.match(expression, /pointerEvents/)
+  assert.match(expression, /data-app-shell-main-surface/)
   assert.match(expression, /app-shell-left-panel/)
   assert.match(expression, /expected/)
 })
@@ -44,6 +45,7 @@ test("buildVerificationExpression verifies the body wallpaper and surface opacit
   assert.match(expression, /terminalSurfacesMatch/)
   assert.match(expression, /sidebarBridgeTransparent/)
   assert.match(expression, /topFadeTransparent/)
+  assert.match(expression, /data-app-shell-main-surface/)
   assert.match(expression, /color-token-main-surface-primary/)
   assert.match(expression, /data-codex-terminal/)
   assert.doesNotMatch(expression, /data-app-shell-focus-area/)
