@@ -4,7 +4,7 @@ English | [简体中文](README.zh-CN.md)
 
 Codex Skin is an open-source macOS companion for giving the Codex desktop app a personal visual theme without modifying or re-signing `ChatGPT.app`. Its desktop client controls a global wallpaper, separate main-panel and sidebar scenes, transparency, positioning, soft edges, and an animated menu-bar icon.
 
-[Project site](https://cixiangtao.github.io/codex-skin/) · [Apple Silicon preview](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg) · [Releases](https://github.com/cixiangtao/codex-skin/releases/tag/desktop-v1.1.2-preview.3) · [npm CLI](https://www.npmjs.com/package/codex-skin) · [Contributing](../CONTRIBUTING.md) · [Support](../SUPPORT.md) · [Security](../SECURITY.md)
+[Project site](https://cixiangtao.github.io/codex-skin/) · [Apple Silicon preview](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.2.2-preview.1/Codex-Skin-1.2.2-arm64.dmg) · [Releases](https://github.com/cixiangtao/codex-skin/releases/tag/desktop-v1.2.2-preview.1) · [npm CLI](https://www.npmjs.com/package/codex-skin) · [Contributing](../CONTRIBUTING.md) · [Support](../SUPPORT.md) · [Security](../SECURITY.md)
 
 > [!IMPORTANT]
 > Codex Skin currently supports Apple Silicon macOS and requires the Codex desktop app. The packaged client is the normal user entry point and includes its runtime. The CLI exists for development, automation, headless diagnostics, and recovery.
@@ -44,11 +44,11 @@ The rationale and maintenance rules are in [Desktop-first architecture](../docs/
 
 ## Install the desktop preview
 
-1. Download [Codex-Skin-1.1.2-arm64.dmg](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.dmg).
+1. Download [Codex-Skin-1.2.2-arm64.dmg](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.2.2-preview.1/Codex-Skin-1.2.2-arm64.dmg).
 2. Open the DMG and drag `Codex Skin.app` to Applications.
 3. Open Codex Skin, choose images, and enable the layers you want.
 
-A [ZIP fallback](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/Codex-Skin-1.1.2-arm64.zip) and [SHA-256 checksums](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.1.2-preview.3/SHA256SUMS.txt) are published with the preview.
+A [ZIP fallback](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.2.2-preview.1/Codex-Skin-1.2.2-arm64.zip) and [SHA-256 checksums](https://github.com/cixiangtao/codex-skin/releases/download/desktop-v1.2.2-preview.1/SHA256SUMS.txt) are published with the preview.
 
 > [!WARNING]
 > The preview is not signed with an Apple Developer ID and is not notarized. Verify the GitHub Release source and checksum. If macOS blocks the app, try opening it once, then use System Settings → Privacy & Security → Open Anyway. Do not bypass the protection for an untrusted download.
