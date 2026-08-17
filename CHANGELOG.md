@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/cixiangtao/codex-skin/compare/v1.2.1...v1.2.2) (2026-08-17)
+
+
+### Bug Fixes
+
+* **runtime:** restore wallpaper on updated Codex ([44996a5](https://github.com/cixiangtao/codex-skin/commit/44996a52f5ebe11cbec6a488b9afedebeb891e4a))
+
 ## [1.2.1](https://github.com/cixiangtao/codex-skin/compare/v1.2.0...v1.2.1) (2026-08-10)
 
 
