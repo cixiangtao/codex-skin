@@ -37,6 +37,8 @@ test("buildBackgroundCss adds a small illustration without replacing native surf
     })
 
     assert.match(css, /data:image\/png;base64,iVBORw==/)
+    assert.match(css, /\[data-app-shell-main-surface\]/)
+    assert.match(css, /\[data-app-shell-main-surface\]::before/)
     assert.match(css, /\.app-shell-main-content-viewport/)
     assert.match(css, /\.app-shell-main-content-viewport::before/)
     assert.match(css, /background-size:\s*420px auto/)
@@ -80,6 +82,7 @@ test("buildBackgroundCss creates independent main and sidebar layers", async () 
       },
     })
 
+    assert.match(css, /\[data-app-shell-main-surface\]::before/)
     assert.match(css, /\.app-shell-main-content-viewport::before/)
     assert.match(css, /\.app-shell-left-panel::before/)
     assert.match(css, /background-size:\s*500px auto/)
@@ -121,6 +124,10 @@ test("buildBackgroundCss paints one body wallpaper and reveals it through the ma
     assert.match(
       css,
       /--color-token-main-surface-primary:\s*color-mix\(in srgb, var\(--codex-base-surface\) 65%, transparent\)\s*!important/,
+    )
+    assert.match(
+      css,
+      /\[data-app-shell-main-surface\][\s\S]*?background-color:\s*var\(--color-token-main-surface-primary\)\s*!important/,
     )
     assert.match(css, /data-codex-terminal="true"/)
     assert.match(css, /\.xterm-viewport/)
